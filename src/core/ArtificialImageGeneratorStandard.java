@@ -9,10 +9,13 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
+
+import javax.swing.SwingUtilities;
 
 import cern.jet.random.Poisson;
 import cern.jet.random.engine.MersenneTwister;
@@ -24,6 +27,7 @@ import com.sun.media.jai.codecimpl.TIFFImageEncoder;
 import enums.Bit;
 import enums.Color;
 import enums.MovementDirection;
+import gui.ArtificialImageGeneratorGUI;
 
 /**
  * Image generator engine
@@ -31,7 +35,7 @@ import enums.MovementDirection;
  * @author Alex Rigano
  * @version 0.4, Beta
  */
-public class ArtificialImageGeneratorStandard {
+public class ArtificialImageGeneratorStandard implements Runnable {
 
 	public static int FRAMES_PER_STEP = 25;
 
@@ -50,7 +54,8 @@ public class ArtificialImageGeneratorStandard {
 	private final Bit bits;
 	private final Color colors;
 
-	private Double signalPeakValue;
+	private List<Double> signalPeakValues;
+	private Double currentSignalPeakValue;
 	private Double backgroundValue;
 
 	private Integer numOfParticles;
@@ -74,6 +79,11 @@ public class ArtificialImageGeneratorStandard {
 
 	private final List<MyPoint> lastAvailPoints;
 	private int lastAvailIndex;
+
+	private final boolean hasBackroundGen, hasParticleGen, hasGaussianGen,
+	        hasPoissonGen, hasGenerateLog;
+
+	private final ArtificialImageGeneratorGUI gui;
 
 	public void setSigmaValue(final Integer sigmaValue) {
 		this.sigmaValue = sigmaValue;
@@ -100,8 +110,8 @@ public class ArtificialImageGeneratorStandard {
 		return this.numOfParticles;
 	}
 
-	public void setSignalPeakValue(final Double signalPeakValue) {
-		this.signalPeakValue = signalPeakValue;
+	public void setSignalPeakValue(final List<Double> signalPeakValues) {
+		this.signalPeakValues = signalPeakValues;
 	}
 
 	public void setMovDir(final MovementDirection movDir) {
@@ -133,7 +143,7 @@ public class ArtificialImageGeneratorStandard {
 	}
 
 	protected Double getSignalPeakValue() {
-		return this.signalPeakValue;
+		return this.currentSignalPeakValue;
 	}
 
 	protected void setLastAvailPoints(final List<MyPoint> lastAvailPoints) {
@@ -160,7 +170,13 @@ public class ArtificialImageGeneratorStandard {
 	        final int numOfDatasets, final String imageName,
 	        final int imagePostfixDigits, final int numOfFrames,
 	        final int height, final int width, final Bit bits,
-	        final Color colors) {
+	        final Color colors, final Double backgroundValue,
+	        final int numOfParticles, final List<Double> signalPeakValues,
+	        final MovementDirection movDirection, final Double movSpeed,
+	        final int radius, final int sigmaValue,
+	        final boolean hasBackgroundGen, final boolean hasParticleGen,
+	        final boolean hasGaussianGen, final boolean hasPoissonGen,
+	        final boolean hasGenerateLog, final ArtificialImageGeneratorGUI gui) {
 		this.folder = folder;
 		this.numOfDatasets = numOfDatasets;
 		this.imageName = imageName;
@@ -168,18 +184,53 @@ public class ArtificialImageGeneratorStandard {
 		this.numOfFrames = numOfFrames;
 		this.height = height;
 		this.width = width;
-
 		this.bits = bits;
 		this.actualMaxValue = this.computeMaxValue(bits);
 		this.colors = colors;
+		this.backgroundValue = backgroundValue;
+
+		this.numOfParticles = numOfParticles;
+		this.signalPeakValues = signalPeakValues;
+		this.movDir = movDirection;
+		this.movSpeed = movSpeed;
+		this.radius = radius;
+		this.sigmaValue = sigmaValue;
+		this.computeCTRAndW();
+
+		this.hasBackroundGen = hasBackgroundGen;
+		this.hasParticleGen = hasParticleGen;
+		this.hasGaussianGen = hasGaussianGen;
+		this.hasPoissonGen = hasPoissonGen;
+		this.hasGenerateLog = hasGenerateLog;
+
+		this.gui = gui;
 
 		this.lastAvailPoints = new ArrayList<MyPoint>();
 		this.lastAvailIndex = 0;
 	}
 
-	public void generate(final int dataset, final boolean hasBackground,
-	        final boolean hasParticles, final boolean hasGaussian,
-	        final boolean hasPoisson) {
+	public void updateGUI(final String update) {
+		try {
+			SwingUtilities.invokeAndWait(new Runnable() {
+
+				@Override
+				public void run() {
+					ArtificialImageGeneratorStandard.this.gui
+					        .appendOutput(update);
+
+				}
+			});
+		} catch (final InvocationTargetException ex) {
+			// TODO Auto-generated catch block
+			ex.printStackTrace();
+		} catch (final InterruptedException ex) {
+			// TODO Auto-generated catch block
+			ex.printStackTrace();
+		}
+	}
+
+	@Override
+	public void run() {
 		final int framePerStep = ArtificialImageGeneratorStandard.FRAMES_PER_STEP;
 		int framePerLastStep = this.numOfFrames
 		        % ArtificialImageGeneratorStandard.FRAMES_PER_STEP;
@@ -189,35 +240,71 @@ public class ArtificialImageGeneratorStandard {
 		} else {
 			framePerLastStep = framePerStep;
 		}
-		for (int i = 0; i < dataset; i++) {
-			for (int s = 0; s < steps; s++) {
-				final boolean tof = (s == (steps - 1));
-				final int frameToDo = tof ? framePerLastStep : framePerStep;
-				this.generateEmptyFrames(frameToDo);
-				if (hasBackground) {
-					this.generateBackgroundLevel();
-				}
-				if (hasParticles) {
-					this.generateParticles();
-				}
-				if (hasGaussian) {
-					this.generateGaussianBlobs_V2();
-				}
-				if (hasPoisson) {
-					this.generatePoissonDistribution();
-				}
-				try {
-					this.generateFramesFiles(i);
-					this.generateLogsFiles(i);
-					this.lastAvailIndex += this.frames.size();
-				} catch (final FileNotFoundException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (final IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+
+		this.updateGUI("Starting generation of " + this.signalPeakValues.size()
+		        + " different signals, " + this.numOfDatasets
+		        + " datasets per signal, " + this.numOfFrames
+		        + " frames per dataset");
+		for (int k = 0; k < this.signalPeakValues.size(); k++) {
+			this.lastAvailIndex = 0;
+			this.lastAvailPoints.clear();
+			this.currentSignalPeakValue = this.signalPeakValues.get(k);
+			final int indexSignal = k + 1;
+			this.updateGUI("Generating folders for signal " + " " + indexSignal
+			        + "/" + this.signalPeakValues.size() + " value: "
+			        + this.currentSignalPeakValue);
+			this.generateFolders();
+			this.updateGUI("Generating folders...completed");
+			for (int i = 0; i < this.numOfDatasets; i++) {
+				final int indexDataset = i + 1;
+				this.updateGUI("Generating dataset " + indexDataset + "/"
+				        + this.numOfDatasets);
+				for (int s = 0; s < steps; s++) {
+					final boolean tof = (s == (steps - 1));
+					final int frameToDo = tof ? framePerLastStep : framePerStep;
+					this.generateEmptyFrames(frameToDo);
+					if (this.hasBackroundGen) {
+						this.generateBackgroundLevel();
+					}
+					if (this.hasParticleGen) {
+						this.generateParticles();
+					}
+					if (this.hasGaussianGen) {
+						this.generateGaussianBlobs_V2();
+					}
+					if (this.hasPoissonGen) {
+						this.generatePoissonDistribution();
+					}
+					try {
+						this.generateFramesFiles(i);
+						if (this.hasParticleGen && this.hasGenerateLog) {
+							this.generateLogsFiles(i);
+						}
+						this.lastAvailIndex += this.frames.size();
+					} catch (final FileNotFoundException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (final IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 				}
 			}
+			try {
+				this.generateResultsFile();
+			} catch (final IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			this.updateGUI("\nPrinting results:");
+			final Double SNR_C_P = this.computeSNR_C_P();
+			this.updateGUI("SNR_C_P value: " + SNR_C_P);
+			final Double SNR_B_P = this.computeSNR_B_P();
+			this.updateGUI("SNR_B_P value: " + SNR_B_P);
+			final Double SNR_B_G = this.computeSNR_B_G();
+			this.updateGUI("SNR_B_G value: " + SNR_B_G);
+			this.updateGUI("************************\n");
+
 		}
 	}
 
@@ -367,7 +454,7 @@ public class ArtificialImageGeneratorStandard {
 			particleCopy.computeIntegerValues();
 			// firstFrame.put(this.computePoint(actualPoint.x, actualPoint.y,
 			// this.width), this.signalPeakValue);
-			firstFrame[particleCopy.y][particleCopy.x] = this.signalPeakValue;
+			firstFrame[particleCopy.y][particleCopy.x] = this.currentSignalPeakValue;
 			frameParticles.add(actualParticle);
 			double x, y;
 			int step = 10;
@@ -418,7 +505,7 @@ public class ArtificialImageGeneratorStandard {
 			particleCopy.computeIntegerValues();
 			// frame.put(this.computePoint(newParticle.x, newParticle.y,
 			// this.width), this.signalPeakValue);
-			firstFrame[particleCopy.y][particleCopy.x] = this.signalPeakValue;
+			firstFrame[particleCopy.y][particleCopy.x] = this.currentSignalPeakValue;
 			frameParticles.add(newParticle);
 		}
 		this.addFrameParticles(frameParticles);
@@ -457,7 +544,7 @@ public class ArtificialImageGeneratorStandard {
 				particleCopy.computeIntegerValues();
 				// frame.put(this.computePoint(newParticle.x, newParticle.y,
 				// this.width), this.signalPeakValue);
-				frame[particleCopy.y][particleCopy.x] = this.signalPeakValue;
+				frame[particleCopy.y][particleCopy.x] = this.currentSignalPeakValue;
 				frameParticles.add(newParticle);
 			}
 			this.addFrameParticles(frameParticles);
@@ -479,11 +566,12 @@ public class ArtificialImageGeneratorStandard {
 				// particleCenter.x, particleCenter.y, this.width));
 				for (int x = -this.radius; x <= this.radius; x++) {
 					for (int y = -this.radius; y <= this.radius; y++) {
-						final Double newValue = this.calculateGaussianValue(
-						        (this.signalPeakValue - this.backgroundValue),
-						        particleCenter.x, particleCenter.y,
-						        particleCenter.x + x, particleCenter.y + y,
-						        this.sigmaValue);
+						final Double newValue = this
+						        .calculateGaussianValue(
+						                (this.currentSignalPeakValue - this.backgroundValue),
+						                particleCenter.x, particleCenter.y,
+						                particleCenter.x + x, particleCenter.y
+						                        + y, this.sigmaValue);
 						// frame.put(this.computePoint(particleCenter.x + x,
 						// particleCenter.y + y, this.width),
 						// this.backgroundValue + newValue);
@@ -609,7 +697,7 @@ public class ArtificialImageGeneratorStandard {
 						// final Double newValue = (centerValue -
 						// this.backgroundValue)
 						// * pprot.get(coeffIndex);
-						final Double newValue = (this.signalPeakValue - this.backgroundValue)
+						final Double newValue = (this.currentSignalPeakValue - this.backgroundValue)
 						        * pprot[x][y];
 						final double val = this.backgroundValue + newValue;
 
@@ -690,7 +778,7 @@ public class ArtificialImageGeneratorStandard {
 	public StringBuffer generateMainFolderName() {
 		final StringBuffer folderName = new StringBuffer();
 		folderName.append(this.folder);
-		folderName.append("/");
+		folderName.append(File.separatorChar);
 		if (this instanceof ArtificialImageGeneratorSpecial) {
 			folderName.append(GenerationType.Special.toString());
 		} else {
@@ -699,7 +787,7 @@ public class ArtificialImageGeneratorStandard {
 		folderName.append("_");
 		folderName.append(this.numOfFrames);
 		folderName.append("_");
-		folderName.append(this.signalPeakValue);
+		folderName.append(this.currentSignalPeakValue);
 		folderName.append("_");
 		folderName.append(this.backgroundValue);
 		folderName.append(this.bits.toString());
@@ -726,12 +814,14 @@ public class ArtificialImageGeneratorStandard {
 		for (Integer i = 0; i < this.numOfDatasets; i++) {
 			final StringBuffer tmp = new StringBuffer();
 			tmp.append(folderName);
-			tmp.append("/");
+			tmp.append(File.separatorChar);
 			final int len = this.numOfDatasets.toString().length();
 			tmp.append(this.generatePostfix(len, i));
 			final File f = new File(tmp.toString());
 			this.folders.add(f);
-			f.mkdirs();
+			if (!f.exists()) {
+				f.mkdirs();
+			}
 		}
 	}
 
@@ -754,7 +844,7 @@ public class ArtificialImageGeneratorStandard {
 			        this.imagePostfixDigits, index).toString();
 			final String fileName = this.imageName + "_" + postfix;
 			final File f = new File(this.folders.get(folderIndex).getPath()
-			        + "/" + fileName + ".tif");
+			        + File.separatorChar + fileName + ".tif");
 			final BufferedImage bi = this.generateBufferedImage();
 			final OutputStream os = new FileOutputStream(f);
 
@@ -792,7 +882,12 @@ public class ArtificialImageGeneratorStandard {
 			        this.imagePostfixDigits, index).toString();
 			final String fileName = this.imageName + "_" + postfix;
 			final File f = new File(this.folders.get(folderIndex).getPath()
-			        + "/logs/PT_Log_" + fileName + ".txt");
+			        + File.separatorChar + "logs" + File.separatorChar
+			        + "PT_Log_" + fileName + ".txt");
+			if (!f.exists()) {
+				f.createNewFile();
+			}
+
 			final FileWriter fw = new FileWriter(f);
 			final BufferedWriter bw = new BufferedWriter(fw);
 
@@ -830,7 +925,11 @@ public class ArtificialImageGeneratorStandard {
 
 	public void generateResultsFile() throws IOException {
 		final StringBuffer folderName = this.generateMainFolderName();
-		final File f = new File(folderName.toString() + "/resultsFile.txt");
+		final File f = new File(folderName.toString() + File.separatorChar
+		        + "resultsFile.txt");
+		if (!f.exists()) {
+			f.createNewFile();
+		}
 		final FileWriter fw = new FileWriter(f);
 		final BufferedWriter bw = new BufferedWriter(fw);
 		bw.write("Gen type:\t\t\t\t");
@@ -847,7 +946,7 @@ public class ArtificialImageGeneratorStandard {
 		bw.write("Width:\t\t\t\t\t" + this.width + "\n");
 		bw.write("Bits:\t\t\t\t\t" + this.bits + "\n");
 		bw.write("Color:\t\t\t\t\t" + this.colors + "\n");
-		bw.write("Peak value:\t\t\t\t" + this.signalPeakValue + "\n");
+		bw.write("Peak value:\t\t\t\t" + this.currentSignalPeakValue + "\n");
 		bw.write("Background value:\t\t" + this.backgroundValue + "\n");
 		bw.write("Number of particle:\t\t" + this.numOfParticles + "\n");
 		bw.write("Radius:\t\t\t\t\t" + this.radius + "\n");
@@ -1049,8 +1148,8 @@ public class ArtificialImageGeneratorStandard {
 	 * @since 0.2
 	 */
 	public Double computeSNR_C_P() {
-		final Double val1 = (double) (this.signalPeakValue - this.backgroundValue);
-		final Double val2 = Math.sqrt(this.signalPeakValue);
+		final Double val1 = (double) (this.currentSignalPeakValue - this.backgroundValue);
+		final Double val2 = Math.sqrt(this.currentSignalPeakValue);
 		return val1 / val2;
 	}
 
@@ -1063,7 +1162,7 @@ public class ArtificialImageGeneratorStandard {
 	 * @since 0.4
 	 */
 	public Double computeSNR_B_P() {
-		final Double val1 = Math.sqrt(this.signalPeakValue);
+		final Double val1 = Math.sqrt(this.currentSignalPeakValue);
 		final Double val2 = Math.sqrt(this.backgroundValue);
 		return 2 * (val1 - val2);
 	}
@@ -1078,9 +1177,9 @@ public class ArtificialImageGeneratorStandard {
 	 * @since 0.4
 	 */
 	public Double computeSNR_B_G() {
-		final Double val1 = Math.sqrt(this.signalPeakValue);
+		final Double val1 = Math.sqrt(this.currentSignalPeakValue);
 		final Double val2 = Math.sqrt(this.backgroundValue);
-		return (2 * (this.signalPeakValue - this.backgroundValue))
+		return (2 * (this.currentSignalPeakValue - this.backgroundValue))
 		        / (val1 + val2);
 	}
 }
