@@ -1,23 +1,24 @@
 package gui;
 
 import java.awt.BorderLayout;
+import java.awt.Container;
+import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JSeparator;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.border.TitledBorder;
 
 import core.GenerationType;
 import enums.Bit;
@@ -32,6 +33,8 @@ import enums.MovementDirection;
  * @since 0.0 of AIG
  */
 public class ArtificialImageGeneratorGUI {
+
+	private static int PANEL_ROWS = 9;
 
 	// TODO:
 	// 1) add validators on gui fields
@@ -71,10 +74,10 @@ public class ArtificialImageGeneratorGUI {
 	private JComboBox<Color> colors_cmb;
 	private JComboBox<MovementDirection> movDirs_cmb;
 
-	private JButton generateBackground_btt;
-	private JButton generateParticles_btt;
-	private JButton generateGaussianBlob_btt;
-	private JButton generatePoissonDistr_btt;
+	private JCheckBox backgroundGen_checkB, particlesGen_checkB,
+	        gaussianGen_checkB, poissonGen_checkB, particlesLogsGen_checkB;
+
+	private JButton generate_btt;
 
 	private JTextArea results_txtA;
 
@@ -113,40 +116,62 @@ public class ArtificialImageGeneratorGUI {
 	 * @since 0.0
 	 */
 	private void addWidgets() {
-		this.mainFrame.getContentPane()
-		        .setLayout(
-		                new BoxLayout(this.mainFrame.getContentPane(),
-		                        BoxLayout.Y_AXIS));
+		final Container cont = this.mainFrame.getContentPane();
+		cont.setLayout(new BorderLayout());
 
-		this.mainFrame.getContentPane().add(
-		        this.generateImageMainInformationsPanel());
-		this.addHorizontalSeparator();
+		final JPanel folderPanel = this.createFolderPanel();
+		final JPanel mainPanel = this.createImageMainInformationsPanel();
+		final JPanel particlesPanel = this.createParticlesPanel();
+		final JPanel optionsPanel = this.createOptionsPanel();
+		final JPanel resultsPanel = this.createResultsPanel();
+		final JPanel buttonsPanel = this.createButtonsPanel();
 
-		this.mainFrame.getContentPane().add(this.generateBackgroundPanel());
-		this.addHorizontalSeparator();
+		final JPanel topPanel = new JPanel();
+		topPanel.setLayout(new BorderLayout());
 
-		this.mainFrame.getContentPane().add(this.generateParticlesPanel());
-		this.addHorizontalSeparator();
+		topPanel.add(folderPanel, BorderLayout.NORTH);
 
-		this.mainFrame.getContentPane().add(this.generateGaussianBlobPanel());
-		this.addHorizontalSeparator();
+		final JPanel centerPanel = new JPanel();
+		centerPanel.setLayout(new GridLayout(1, 2));
+		centerPanel.add(mainPanel);
+		centerPanel.add(particlesPanel);
+		topPanel.add(centerPanel, BorderLayout.CENTER);
+		topPanel.add(optionsPanel, BorderLayout.SOUTH);
 
-		this.mainFrame.getContentPane().add(
-		        this.generatePoissonDistributionPanel());
-		this.addHorizontalSeparator();
+		cont.add(topPanel, BorderLayout.NORTH);
 
-		this.mainFrame.getContentPane().add(this.generateResultsPanel());
+		cont.add(resultsPanel, BorderLayout.CENTER);
+		cont.add(buttonsPanel, BorderLayout.SOUTH);
 	}
 
-	/**
-	 * Add an horizontal separator
-	 * 
-	 * @since 0.0
-	 */
-	private void addHorizontalSeparator() {
-		this.mainFrame.getContentPane().add(Box.createVerticalStrut(5));
-		this.mainFrame.getContentPane().add(new JSeparator());
-		this.mainFrame.getContentPane().add(Box.createVerticalStrut(5));
+	private JPanel createFolderPanel() {
+		final JPanel panel = new JPanel();
+		panel.setLayout(new BorderLayout());
+
+		final JPanel topSubPanel = new JPanel();
+		topSubPanel.setLayout(new GridLayout(1, 2));
+
+		topSubPanel.add(new JLabel("Choose generatore type:"));
+		final GenerationType[] choices = GenerationType.values();
+		this.generatorTypeCombo = new JComboBox<GenerationType>(choices);
+		topSubPanel.add(this.generatorTypeCombo);
+
+		this.dirChooserButt = new JButton("Choose the working directory");
+		topSubPanel.add(this.dirChooserButt);
+
+		panel.add(topSubPanel, BorderLayout.NORTH);
+
+		final JPanel subPanel = new JPanel();
+		subPanel.setLayout(new FlowLayout());
+
+		subPanel.add(new JLabel("Actual folder:"));
+		final String s = this.dirChooserDialog.getCurrentDirectory().getPath();
+		this.currentDirLbl = new JLabel(s);
+		subPanel.add(this.currentDirLbl);
+
+		panel.add(subPanel, BorderLayout.SOUTH);
+
+		return panel;
 	}
 
 	/**
@@ -156,90 +181,54 @@ public class ArtificialImageGeneratorGUI {
 	 * 
 	 * @since 0.0
 	 */
-	private JPanel generateImageMainInformationsPanel() {
+	private JPanel createImageMainInformationsPanel() {
 		final JPanel panel = new JPanel();
-		panel.setLayout(new BorderLayout());
+		panel.setBorder(new TitledBorder("Image options"));
+		panel.setLayout(new GridLayout(ArtificialImageGeneratorGUI.PANEL_ROWS,
+		        2));
 
-		final JPanel topSubPanel = new JPanel();
-		topSubPanel.setLayout(new GridLayout(5, 1));
-
-		topSubPanel.add(new JLabel("Choose generatore type:"));
-		final GenerationType[] choices = GenerationType.values();
-		this.generatorTypeCombo = new JComboBox<GenerationType>(choices);
-		topSubPanel.add(this.generatorTypeCombo);
-
-		topSubPanel.add(new JLabel("Actual folder:"));
-		final String s = this.dirChooserDialog.getCurrentDirectory().getPath();
-		this.currentDirLbl = new JLabel(s);
-		topSubPanel.add(this.currentDirLbl);
-		this.dirChooserButt = new JButton("Choose the working directory");
-		topSubPanel.add(this.dirChooserButt);
-
-		panel.add(topSubPanel, BorderLayout.NORTH);
-
-		final JPanel subPanel = new JPanel();
-		subPanel.setLayout(new GridLayout(8, 2));
-
-		subPanel.add(new JLabel("Number of datasets"));
+		panel.add(new JLabel("Number of datasets"));
 		this.numberOfDatasets_text = new JTextField();
-		subPanel.add(this.numberOfDatasets_text);
+		panel.add(this.numberOfDatasets_text);
 
-		subPanel.add(new JLabel("Image name"));
+		panel.add(new JLabel("Image name"));
 		this.imageName_txt = new JTextField();
-		subPanel.add(this.imageName_txt);
+		panel.add(this.imageName_txt);
 
-		subPanel.add(new JLabel("Image digits postfix"));
+		panel.add(new JLabel("Image digits postfix"));
 		this.imageDigitsPostfix_txt = new JTextField();
-		subPanel.add(this.imageDigitsPostfix_txt);
+		panel.add(this.imageDigitsPostfix_txt);
 
-		subPanel.add(new JLabel("Number of frames"));
+		panel.add(new JLabel("Number of frames"));
 		this.numOfFrames_txt = new JTextField();
-		subPanel.add(this.numOfFrames_txt);
+		panel.add(this.numOfFrames_txt);
 
-		subPanel.add(new JLabel("Frame height"));
+		panel.add(new JLabel("Frame height"));
 		this.height_txt = new JTextField();
-		subPanel.add(this.height_txt);
+		panel.add(this.height_txt);
 
-		subPanel.add(new JLabel("Frame width"));
+		panel.add(new JLabel("Frame width"));
 		this.width_txt = new JTextField();
-		subPanel.add(this.width_txt);
+		panel.add(this.width_txt);
 
-		subPanel.add(new JLabel("Frame bits deepth"));
+		panel.add(new JLabel("Frame bits deepth"));
 		this.bits_cmb = new JComboBox<Bit>(Bit.values());
-		subPanel.add(this.bits_cmb);
+		panel.add(this.bits_cmb);
 
-		subPanel.add(new JLabel("Frame colors"));
+		panel.add(new JLabel("Frame colors"));
 		this.colors_cmb = new JComboBox<Color>(Color.values());
-		subPanel.add(this.colors_cmb);
+		panel.add(this.colors_cmb);
 
-		panel.add(subPanel, BorderLayout.CENTER);
-
-		return panel;
-	}
-
-	/**
-	 * Create the image background panel
-	 * 
-	 * @return
-	 * 
-	 * @since 0.0
-	 */
-	private JPanel generateBackgroundPanel() {
-		final JPanel panel = new JPanel();
-		panel.setLayout(new BorderLayout());
-
-		final JPanel subPanel = new JPanel();
-		subPanel.setLayout(new GridLayout(1, 2));
-
-		subPanel.add(new JLabel("Background value"));
+		panel.add(new JLabel("Background value"));
 		this.backgroundValue_txt = new JTextField();
-		subPanel.add(this.backgroundValue_txt);
+		panel.add(this.backgroundValue_txt);
 
-		panel.add(subPanel, BorderLayout.CENTER);
-
-		this.generateBackground_btt = new JButton(
-		        "<HTML><center>Generate frames with<BR><center>background only - step 1 </HTML>");
-		panel.add(this.generateBackground_btt, BorderLayout.SOUTH);
+		final int diff = ArtificialImageGeneratorGUI.PANEL_ROWS
+		        - panel.getComponentCount();
+		for (int i = 0; i < diff; i++) {
+			panel.add(new JLabel());
+			panel.add(new JLabel());
+		}
 
 		return panel;
 	}
@@ -251,84 +240,76 @@ public class ArtificialImageGeneratorGUI {
 	 * 
 	 * @since 0.0
 	 */
-	private JPanel generateParticlesPanel() {
+	private JPanel createParticlesPanel() {
 		final JPanel panel = new JPanel();
-		panel.setLayout(new BorderLayout());
+		panel.setBorder(new TitledBorder("Particles options"));
+		panel.setLayout(new GridLayout(ArtificialImageGeneratorGUI.PANEL_ROWS,
+		        2));
 
-		final JPanel subPanel = new JPanel();
-		subPanel.setLayout(new GridLayout(4, 2));
-
-		subPanel.add(new JLabel("Number of particles"));
+		panel.add(new JLabel("Number of particles"));
 		this.numOfParticles_txt = new JTextField();
-		subPanel.add(this.numOfParticles_txt);
+		panel.add(this.numOfParticles_txt);
 
-		subPanel.add(new JLabel("Signal peak value"));
+		panel.add(new JLabel("Signal peak value"));
 		this.signalPeakValue_txt = new JTextField();
-		subPanel.add(this.signalPeakValue_txt);
+		panel.add(this.signalPeakValue_txt);
 
-		subPanel.add(new JLabel("Particles movement direction"));
+		panel.add(new JLabel("Particles movement direction"));
 		this.movDirs_cmb = new JComboBox<MovementDirection>(
 		        MovementDirection.values());
-		subPanel.add(this.movDirs_cmb);
+		panel.add(this.movDirs_cmb);
 
-		subPanel.add(new JLabel("Particle movement speed"));
+		panel.add(new JLabel("Particle movement speed"));
 		this.movSpeed_txt = new JTextField();
-		subPanel.add(this.movSpeed_txt);
+		panel.add(this.movSpeed_txt);
 
-		panel.add(subPanel, BorderLayout.CENTER);
-
-		this.generateParticles_btt = new JButton(
-		        "<HTML><center>Generate frames with<BR><center>particles - step 1 & 2 </HTML>");
-		panel.add(this.generateParticles_btt, BorderLayout.SOUTH);
-
-		return panel;
-	}
-
-	/**
-	 * Create the gaussian blob panel
-	 * 
-	 * @return
-	 * 
-	 * @since 0.0
-	 */
-	private JPanel generateGaussianBlobPanel() {
-		final JPanel panel = new JPanel();
-		panel.setLayout(new BorderLayout());
-
-		final JPanel subPanel = new JPanel();
-		subPanel.setLayout(new GridLayout(2, 2));
-
-		subPanel.add(new JLabel("Radius of particles"));
+		panel.add(new JLabel("Radius of particles"));
 		this.radius_txt = new JTextField();
-		subPanel.add(this.radius_txt);
+		panel.add(this.radius_txt);
 
-		subPanel.add(new JLabel("Sigma value"));
+		panel.add(new JLabel("Sigma value"));
 		this.sigma_txt = new JTextField();
-		subPanel.add(this.sigma_txt);
+		panel.add(this.sigma_txt);
 
-		panel.add(subPanel, BorderLayout.CENTER);
-
-		this.generateGaussianBlob_btt = new JButton(
-		        "<HTML><center>Generate frames with<BR><center>Gaussian blob - step 1, 2 & 3 </HTML>");
-		panel.add(this.generateGaussianBlob_btt, BorderLayout.SOUTH);
+		final int diff = ArtificialImageGeneratorGUI.PANEL_ROWS
+		        - panel.getComponentCount();
+		for (int i = 0; i < diff; i++) {
+			panel.add(new JLabel());
+			panel.add(new JLabel());
+		}
 
 		return panel;
 	}
 
-	/**
-	 * Create the poisson distribution panel
-	 * 
-	 * @return
-	 * 
-	 * @since 0.0
-	 */
-	private JPanel generatePoissonDistributionPanel() {
+	private JPanel createOptionsPanel() {
 		final JPanel panel = new JPanel();
-		panel.setLayout(new BorderLayout());
+		panel.setBorder(new TitledBorder("Generation options"));
+		panel.setLayout(new FlowLayout());
 
-		this.generatePoissonDistr_btt = new JButton(
-		        "<HTML><center>Generate frames with Gaussian blob<BR><center>and Poisson distribution - all steps </HTML>");
-		panel.add(this.generatePoissonDistr_btt, BorderLayout.SOUTH);
+		this.backgroundGen_checkB = new JCheckBox("Has background");
+		panel.add(this.backgroundGen_checkB);
+
+		this.particlesGen_checkB = new JCheckBox("Has particles");
+		panel.add(this.particlesGen_checkB);
+
+		this.particlesLogsGen_checkB = new JCheckBox("Has particles logs");
+		panel.add(this.particlesLogsGen_checkB);
+
+		this.gaussianGen_checkB = new JCheckBox("Has gaussian blob");
+		panel.add(this.gaussianGen_checkB);
+
+		this.poissonGen_checkB = new JCheckBox("Has poisson");
+		panel.add(this.poissonGen_checkB);
+
+		return panel;
+	}
+
+	private JPanel createButtonsPanel() {
+		final JPanel panel = new JPanel();
+		panel.setLayout(new FlowLayout());
+
+		this.generate_btt = new JButton("Generate");
+		panel.add(this.generate_btt);
 
 		return panel;
 	}
@@ -340,7 +321,7 @@ public class ArtificialImageGeneratorGUI {
 	 * 
 	 * @since 0.2
 	 */
-	private JPanel generateResultsPanel() {
+	private JPanel createResultsPanel() {
 		final JPanel panel = new JPanel();
 		panel.setLayout(new BorderLayout());
 
@@ -371,14 +352,7 @@ public class ArtificialImageGeneratorGUI {
 	 */
 	private void addListeners() {
 		ArtificialImageGeneratorGUIListeners.addWorkingDirChooser(this);
-		ArtificialImageGeneratorGUIListeners
-		        .addGenerateBackgroundButtListener(this);
-		ArtificialImageGeneratorGUIListeners
-		        .addGenerateParticlesButtListener(this);
-		ArtificialImageGeneratorGUIListeners
-		        .addGenerateGaussianBlobButtListener(this);
-		ArtificialImageGeneratorGUIListeners
-		        .addGeneratePoissonDistrButtListener(this);
+		ArtificialImageGeneratorGUIListeners.addGenerateButtListener(this);
 		ArtificialImageGeneratorGUIListeners
 		        .addChangeGeneratoreTypeListener(this);
 	}
@@ -390,7 +364,7 @@ public class ArtificialImageGeneratorGUI {
 	 */
 	public void setDefaultValues(final GenerationType genType) {
 		this.numberOfDatasets_text.setText("1");
-		this.imageName_txt.setText("test_");
+		this.imageName_txt.setText("test");
 		this.imageDigitsPostfix_txt.setText("4");
 		this.numOfFrames_txt.setText("100");
 
@@ -403,6 +377,12 @@ public class ArtificialImageGeneratorGUI {
 		this.radius_txt.setText("4");
 
 		this.sigma_txt.setText("1");
+
+		this.backgroundGen_checkB.setSelected(true);
+		this.particlesGen_checkB.setSelected(true);
+		this.particlesLogsGen_checkB.setSelected(true);
+		this.gaussianGen_checkB.setSelected(true);
+		this.poissonGen_checkB.setSelected(true);
 
 		switch (genType) {
 		case Special:
@@ -428,47 +408,14 @@ public class ArtificialImageGeneratorGUI {
 	}
 
 	/**
-	 * Return the generate background button
-	 * 
-	 * @return
-	 * 
-	 * @since 0.0
-	 */
-	public JButton getGenerateBackgroundButt() {
-		return this.generateBackground_btt;
-	}
-
-	/**
-	 * Return the generate particles button
-	 * 
-	 * @return
-	 * 
-	 * @since 0.0
-	 */
-	public JButton getGenerateParticlesButt() {
-		return this.generateParticles_btt;
-	}
-
-	/**
-	 * Return the generate gaussian blob button
-	 * 
-	 * @return
-	 * 
-	 * @since 0.0
-	 */
-	public JButton getGenerateGaussianBlobButt() {
-		return this.generateGaussianBlob_btt;
-	}
-
-	/**
 	 * Return the generate poisson distribution button
 	 * 
 	 * @return
 	 * 
 	 * @since 0.0
 	 */
-	public JButton getGeneratePoissonDistrButt() {
-		return this.generatePoissonDistr_btt;
+	public JButton getGenerateButt() {
+		return this.generate_btt;
 	}
 
 	/**
@@ -673,8 +620,8 @@ public class ArtificialImageGeneratorGUI {
 	 * 
 	 * @since 0.2
 	 */
-	public void appendResultsText(final String results) {
-		this.results_txtA.append(results);
+	public void appendOutput(final String output) {
+		this.results_txtA.append(output);
 		this.results_txtA.append("\n");
 		this.results_txtA.setCaretPosition(this.results_txtA.getDocument()
 		        .getLength());
@@ -705,5 +652,25 @@ public class ArtificialImageGeneratorGUI {
 
 	public GenerationType getGeneratorType() {
 		return (GenerationType) this.generatorTypeCombo.getSelectedItem();
+	}
+
+	public boolean getHasBackground() {
+		return this.backgroundGen_checkB.isSelected();
+	}
+
+	public boolean getHasParticles() {
+		return this.particlesGen_checkB.isSelected();
+	}
+
+	public boolean getHasParticlesLogs() {
+		return this.particlesLogsGen_checkB.isSelected();
+	}
+
+	public boolean getHasGaussian() {
+		return this.gaussianGen_checkB.isSelected();
+	}
+
+	public boolean getHasPoisson() {
+		return this.poissonGen_checkB.isSelected();
 	}
 }

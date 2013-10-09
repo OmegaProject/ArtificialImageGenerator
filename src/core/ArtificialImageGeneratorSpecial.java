@@ -8,6 +8,7 @@ import java.util.Random;
 
 import enums.Bit;
 import enums.Color;
+import gui.ArtificialImageGeneratorGUI;
 
 /**
  * Image generator engine
@@ -22,9 +23,16 @@ public class ArtificialImageGeneratorSpecial extends
 	        final int numOfDatasets, final String imageName,
 	        final int imagePostfixDigits, final int numOfFrames,
 	        final int height, final int width, final Bit bits,
-	        final Color colors) {
+	        final Color colors, final List<Double> signalPeakValues,
+	        final Double backgroundValue, final int radius,
+	        final int sigmaValue, final boolean hasBackgroundGen,
+	        final boolean hasParticleGen, final boolean hasGaussianGen,
+	        final boolean hasPoissonGen, final boolean hasLogGen,
+	        final ArtificialImageGeneratorGUI gui) {
 		super(folder, numOfDatasets, imageName, imagePostfixDigits,
-		        numOfFrames, height, width, bits, colors);
+		        numOfFrames, height, width, bits, colors, signalPeakValues,
+		        backgroundValue, radius, sigmaValue, hasBackgroundGen,
+		        hasParticleGen, hasGaussianGen, hasPoissonGen, hasLogGen, gui);
 	}
 
 	// GENERATE PARTICLES
