@@ -80,10 +80,10 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 	private final List<MyPoint> lastAvailPoints;
 	private int lastAvailIndex;
 
-	private final boolean hasBackroundGen, hasParticleGen, hasGaussianGen,
+	private boolean hasBackroundGen, hasParticleGen, hasGaussianGen,
 	        hasPoissonGen, hasGenerateLog;
 
-	private final ArtificialImageGeneratorGUI gui;
+	private ArtificialImageGeneratorGUI gui;
 
 	public void setSigmaValue(final Integer sigmaValue) {
 		this.sigmaValue = sigmaValue;
@@ -207,6 +207,14 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 
 		this.lastAvailPoints = new ArrayList<MyPoint>();
 		this.lastAvailIndex = 0;
+
+		this.hasBackroundGen = hasBackgroundGen;
+		this.hasParticleGen = hasParticleGen;
+		this.hasGaussianGen = hasGaussianGen;
+		this.hasPoissonGen = hasPoissonGen;
+		this.hasGenerateLog = hasGenerateLog;
+
+		this.gui = gui;
 	}
 
 	public void updateGUI(final String update) {
@@ -304,7 +312,6 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 			final Double SNR_B_G = this.computeSNR_B_G();
 			this.updateGUI("SNR_B_G value: " + SNR_B_G);
 			this.updateGUI("************************\n");
-
 		}
 	}
 
