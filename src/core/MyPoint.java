@@ -1,5 +1,8 @@
 package core;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 /**
  * MyPoint is coordinate container able to hold both Integer and Double value of
  * a point x and y coordinate and compute the Integer value of the given Double
@@ -13,8 +16,8 @@ package core;
 public class MyPoint {
 	Integer x;
 	Integer y;
-	Double xD;
-	Double yD;
+	BigDecimal xD;
+	BigDecimal yD;
 
 	/**
 	 * Create an empty point, all the coordinate values will be zero
@@ -35,8 +38,8 @@ public class MyPoint {
 	 * @since 1.0
 	 */
 	public MyPoint(final Double xD, final Double yD) {
-		this.xD = xD;
-		this.yD = yD;
+		this.xD = BigDecimal.valueOf(xD).setScale(2, RoundingMode.HALF_UP);
+		this.yD = BigDecimal.valueOf(yD).setScale(2, RoundingMode.HALF_UP);
 
 		this.computeIntegerValues();
 	}
@@ -47,7 +50,9 @@ public class MyPoint {
 	 * @since 1.0
 	 */
 	public void computeIntegerValues() {
-		this.x = ((Double) Math.rint(this.xD)).intValue();
-		this.y = ((Double) Math.rint(this.yD)).intValue();
+		// this.x = ((Double) Math.rint(this.xD)).intValue();
+		// this.y = ((Double) Math.rint(this.yD)).intValue();
+		this.x = this.xD.setScale(0, RoundingMode.HALF_UP).intValue();
+		this.y = this.yD.setScale(0, RoundingMode.HALF_UP).intValue();
 	}
 }

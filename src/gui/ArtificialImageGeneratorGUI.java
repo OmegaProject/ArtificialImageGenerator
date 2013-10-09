@@ -19,6 +19,7 @@ import javax.swing.JSeparator;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 
+import core.GenerationType;
 import enums.Bit;
 import enums.Color;
 import enums.MovementDirection;
@@ -44,6 +45,8 @@ public class ArtificialImageGeneratorGUI {
 	}
 
 	private JFrame mainFrame;
+
+	private JComboBox<GenerationType> generatorTypeCombo;
 
 	private JButton dirChooserButt;
 	private JFileChooser dirChooserDialog;
@@ -97,7 +100,7 @@ public class ArtificialImageGeneratorGUI {
 
 		this.addListeners();
 
-		this.setDefaultValues();
+		this.setDefaultValues(GenerationType.Standard);
 
 		// Display the window.
 		this.mainFrame.pack();
@@ -158,7 +161,12 @@ public class ArtificialImageGeneratorGUI {
 		panel.setLayout(new BorderLayout());
 
 		final JPanel topSubPanel = new JPanel();
-		topSubPanel.setLayout(new GridLayout(3, 1));
+		topSubPanel.setLayout(new GridLayout(5, 1));
+
+		topSubPanel.add(new JLabel("Choose generatore type:"));
+		final GenerationType[] choices = GenerationType.values();
+		this.generatorTypeCombo = new JComboBox<GenerationType>(choices);
+		topSubPanel.add(this.generatorTypeCombo);
 
 		topSubPanel.add(new JLabel("Actual folder:"));
 		final String s = this.dirChooserDialog.getCurrentDirectory().getPath();
@@ -371,6 +379,8 @@ public class ArtificialImageGeneratorGUI {
 		        .addGenerateGaussianBlobButtListener(this);
 		ArtificialImageGeneratorGUIListeners
 		        .addGeneratePoissonDistrButtListener(this);
+		ArtificialImageGeneratorGUIListeners
+		        .addChangeGeneratoreTypeListener(this);
 	}
 
 	/**
@@ -378,26 +388,42 @@ public class ArtificialImageGeneratorGUI {
 	 * 
 	 * @since 0.1
 	 */
-	private void setDefaultValues() {
+	public void setDefaultValues(final GenerationType genType) {
 		this.numberOfDatasets_text.setText("1");
-		this.imageName_txt.setText("test");
+		this.imageName_txt.setText("test_");
 		this.imageDigitsPostfix_txt.setText("4");
 		this.numOfFrames_txt.setText("100");
-		this.height_txt.setText("118");
-		this.width_txt.setText("118");
 
 		this.bits_cmb.setSelectedItem(Bit._16_Bits);
 		this.colors_cmb.setSelectedItem(Color.Grey);
 
 		this.backgroundValue_txt.setText("10");
-
-		this.numOfParticles_txt.setText("10");
-		this.radius_txt.setText("4");
 		this.signalPeakValue_txt.setText("23.9");
-		this.movDirs_cmb.setSelectedItem(MovementDirection.Horizontal);
-		this.movSpeed_txt.setText("0.27");
+
+		this.radius_txt.setText("4");
 
 		this.sigma_txt.setText("1");
+
+		switch (genType) {
+		case Special:
+			this.height_txt.setText("15");
+			this.width_txt.setText("15");
+			this.numOfParticles_txt.setText("1");
+			this.movDirs_cmb.setSelectedIndex(-1);
+			this.movSpeed_txt.setText("");
+			this.movSpeed_txt.setEnabled(false);
+			this.movDirs_cmb.setEnabled(false);
+			break;
+		default:
+			this.height_txt.setText("256");
+			this.width_txt.setText("256");
+			this.numOfParticles_txt.setText("10");
+			this.movDirs_cmb.setSelectedItem(MovementDirection.Horizontal);
+			this.movSpeed_txt.setText("0.27");
+			this.movSpeed_txt.setEnabled(true);
+			this.movDirs_cmb.setEnabled(true);
+			break;
+		}
 
 	}
 
@@ -592,6 +618,8 @@ public class ArtificialImageGeneratorGUI {
 	 * @since 0.0
 	 */
 	public MovementDirection getMovementDirection() {
+		if (this.movDirs_cmb.getSelectedIndex() == -1)
+			return null;
 		return (MovementDirection) this.movDirs_cmb.getSelectedItem();
 	}
 
@@ -603,6 +631,8 @@ public class ArtificialImageGeneratorGUI {
 	 * @since 0.0
 	 */
 	public Double getMovementSpeed() {
+		if (this.movSpeed_txt.getText().isEmpty())
+			return null;
 		return Double.valueOf(this.movSpeed_txt.getText());
 	}
 
@@ -669,4 +699,11 @@ public class ArtificialImageGeneratorGUI {
 		this.currentDirLbl.setText(s);
 	}
 
+	public JComboBox<GenerationType> getGeneratorTypeCombo() {
+		return this.generatorTypeCombo;
+	}
+
+	public GenerationType getGeneratorType() {
+		return (GenerationType) this.generatorTypeCombo.getSelectedItem();
+	}
 }

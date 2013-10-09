@@ -9,11 +9,10 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import cern.jet.random.Poisson;
 import cern.jet.random.engine.MersenneTwister;
@@ -32,7 +31,9 @@ import enums.MovementDirection;
  * @author Alex Rigano
  * @version 0.4, Beta
  */
-public class ArtificialImageGenerator {
+public class ArtificialImageGeneratorStandard {
+
+	public static int FRAMES_PER_STEP = 25;
 
 	private final File folder;
 
@@ -59,17 +60,88 @@ public class ArtificialImageGenerator {
 
 	private Integer ctr;
 	private Integer w;
-	private Map<Integer, Integer> xVal;
-	private Map<Integer, Integer> yVal;
+	private Integer[][] xVal;
+	private Integer[][] yVal;
 
 	private MovementDirection movDir;
 	private Double movSpeed;
 
 	private List<File> folders;
-	private List<Map<Integer, Double>> frames;
+	private List<Double[][]> frames;
 	private List<List<MyPoint>> particles;
 
 	private final Double actualMaxValue;
+
+	private final List<MyPoint> lastAvailPoints;
+	private int lastAvailIndex;
+
+	public void setSigmaValue(final Integer sigmaValue) {
+		this.sigmaValue = sigmaValue;
+	}
+
+	public void setRadius(final Integer radius) {
+		this.radius = radius;
+	}
+
+	protected Integer getRadius() {
+		return this.radius;
+	}
+
+	public void computeCTRAndW() {
+		this.ctr = this.radius * this.sigmaValue;
+		this.w = (this.ctr * 2) + 1;
+	}
+
+	public void setNumOfParticle(final int numOfParticles) {
+		this.numOfParticles = numOfParticles;
+	}
+
+	protected int getNumOfParticle() {
+		return this.numOfParticles;
+	}
+
+	public void setSignalPeakValue(final Double signalPeakValue) {
+		this.signalPeakValue = signalPeakValue;
+	}
+
+	public void setMovDir(final MovementDirection movDir) {
+		this.movDir = movDir;
+	}
+
+	public void setMovSpeed(final Double movSpeed) {
+		this.movSpeed = movSpeed;
+	}
+
+	protected List<List<MyPoint>> getParticles() {
+		return this.particles;
+	}
+
+	protected void initParticles() {
+		this.particles = new ArrayList<List<MyPoint>>();
+	}
+
+	protected void addFrameParticles(final List<MyPoint> frameParticles) {
+		this.particles.add(frameParticles);
+	}
+
+	protected List<Double[][]> getFrames() {
+		return this.frames;
+	}
+
+	protected Integer getCTR() {
+		return this.ctr;
+	}
+
+	protected Double getSignalPeakValue() {
+		return this.signalPeakValue;
+	}
+
+	protected void setLastAvailPoints(final List<MyPoint> lastAvailPoints) {
+		this.lastAvailPoints.clear();
+		if (lastAvailPoints != null) {
+			this.lastAvailPoints.addAll(lastAvailPoints);
+		}
+	}
 
 	/**
 	 * Create a new generatore with the given parameters
@@ -84,10 +156,11 @@ public class ArtificialImageGenerator {
 	 * 
 	 * @since 0.0
 	 */
-	public ArtificialImageGenerator(final File folder, final int numOfDatasets,
-	        final String imageName, final int imagePostfixDigits,
-	        final int numOfFrames, final int height, final int width,
-	        final Bit bits, final Color colors) {
+	public ArtificialImageGeneratorStandard(final File folder,
+	        final int numOfDatasets, final String imageName,
+	        final int imagePostfixDigits, final int numOfFrames,
+	        final int height, final int width, final Bit bits,
+	        final Color colors) {
 		this.folder = folder;
 		this.numOfDatasets = numOfDatasets;
 		this.imageName = imageName;
@@ -100,6 +173,52 @@ public class ArtificialImageGenerator {
 		this.actualMaxValue = this.computeMaxValue(bits);
 		this.colors = colors;
 
+		this.lastAvailPoints = new ArrayList<MyPoint>();
+		this.lastAvailIndex = 0;
+	}
+
+	public void generate(final int dataset, final boolean hasBackground,
+	        final boolean hasParticles, final boolean hasGaussian,
+	        final boolean hasPoisson) {
+		final int framePerStep = ArtificialImageGeneratorStandard.FRAMES_PER_STEP;
+		int framePerLastStep = this.numOfFrames
+		        % ArtificialImageGeneratorStandard.FRAMES_PER_STEP;
+		int steps = this.numOfFrames / framePerStep;
+		if (framePerLastStep > 0) {
+			steps++;
+		} else {
+			framePerLastStep = framePerStep;
+		}
+		for (int i = 0; i < dataset; i++) {
+			for (int s = 0; s < steps; s++) {
+				final boolean tof = (s == (steps - 1));
+				final int frameToDo = tof ? framePerLastStep : framePerStep;
+				this.generateEmptyFrames(frameToDo);
+				if (hasBackground) {
+					this.generateBackgroundLevel();
+				}
+				if (hasParticles) {
+					this.generateParticles();
+				}
+				if (hasGaussian) {
+					this.generateGaussianBlobs_V2();
+				}
+				if (hasPoisson) {
+					this.generatePoissonDistribution();
+				}
+				try {
+					this.generateFramesFiles(i);
+					this.generateLogsFiles(i);
+					this.lastAvailIndex += this.frames.size();
+				} catch (final FileNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (final IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 
 	/**
@@ -143,17 +262,20 @@ public class ArtificialImageGenerator {
 	 * 
 	 * @since 0.0
 	 */
-	public int computePoint(final int x, final int y, final int width) {
-		return (y * width) + x;
-	}
+	// public int computePoint(final int x, final int y, final int width) {
+	// return (y * width) + x;
+	// }
 
-	public void generateEmptyFrames() {
-		this.frames = new ArrayList<Map<Integer, Double>>();
-		for (int i = 0; i < this.numOfFrames; i++) {
-			final Map<Integer, Double> frame = new HashMap<Integer, Double>();
+	public void generateEmptyFrames(final int framesToDo) {
+		this.frames = new ArrayList<Double[][]>();
+		for (int i = 0; i < framesToDo; i++) {
+			final Double[][] frame = new Double[this.height][this.width];
+			// final Map<Integer, Double> frame = new HashMap<Integer,
+			// Double>();
 			for (int y = 0; y < this.height; y++) {
 				for (int x = 0; x < this.width; x++) {
-					frame.put(this.computePoint(x, y, this.width), 0.0);
+					frame[y][x] = 0.0;
+					// frame.put(this.computePoint(x, y, this.width), 0.0);
 				}
 			}
 			this.frames.add(frame);
@@ -178,30 +300,16 @@ public class ArtificialImageGenerator {
 	 * @since 0.0
 	 */
 	public void generateBackgroundLevel() {
-		for (final Map<Integer, Double> frame : this.frames) {
+		// for (Map<Integer, Double> frame : this.frames) {
+		for (final Double[][] frame : this.frames) {
 			for (int y = 0; y < this.height; y++) {
 				for (int x = 0; x < this.width; x++) {
-					frame.put(this.computePoint(x, y, this.width),
-					        this.backgroundValue);
+					// frame.put(this.computePoint(x, y, this.width),
+					// this.backgroundValue);
+					frame[y][x] = this.backgroundValue;
 				}
 			}
 		}
-	}
-
-	public void setNumOfParticle(final int numOfParticles) {
-		this.numOfParticles = numOfParticles;
-	}
-
-	public void setSignalPeakValue(final Double signalPeakValue) {
-		this.signalPeakValue = signalPeakValue;
-	}
-
-	public void setMovDir(final MovementDirection movDir) {
-		this.movDir = movDir;
-	}
-
-	public void setMovSpeed(final Double movSpeed) {
-		this.movSpeed = movSpeed;
 	}
 
 	// GENERATE PARTICLES
@@ -218,8 +326,13 @@ public class ArtificialImageGenerator {
 	 * @since 0.1
 	 */
 	public void generateParticles() {
-		this.generateFirstFrameParticles();
-		this.generateSubsequentialFrameParticles();
+		if (this.lastAvailPoints.isEmpty()) {
+			this.generateFirstFrameParticles();
+			this.generateSubsequentialFrameParticles();
+		} else {
+			this.generateFirstFrameParticlesFromAvailParticles();
+			this.generateSubsequentialFrameParticles();
+		}
 	}
 
 	/**
@@ -228,41 +341,88 @@ public class ArtificialImageGenerator {
 	 * @since 0.0
 	 */
 	private void generateFirstFrameParticles() {
-		this.particles = new ArrayList<List<MyPoint>>();
-		final Map<Integer, Double> firstFrame = this.frames.get(0);
-		MyPoint startingPoint;
+		this.initParticles();
+		// Map<Integer, Double> frame = this.frames.get(0);
+		final Double[][] firstFrame = this.frames.get(0);
+		MyPoint startingParticle;
 		switch (this.movDir) {
 		case Vertical:
-			startingPoint = new MyPoint(10.0 + this.ctr, 10.0 + this.ctr);
+			startingParticle = new MyPoint(10.0, 10.0);
 			break;
 		default:
-			startingPoint = new MyPoint(10.0 + this.ctr, 10.0 + this.ctr);
+			startingParticle = new MyPoint(10.0, 10.0);
 			break;
 		}
 
-		MyPoint actualPoint = startingPoint;
+		MyPoint actualParticle = startingParticle;
 		final List<MyPoint> frameParticles = new ArrayList<MyPoint>();
 		for (int p = 0; p < this.numOfParticles; p++) {
-			actualPoint.computeIntegerValues();
-			firstFrame
-			        .put(this.computePoint(actualPoint.x, actualPoint.y,
-			                this.width), this.signalPeakValue);
-			frameParticles.add(actualPoint);
+			actualParticle.computeIntegerValues();
 
-			final MyPoint newPoint = new MyPoint();
+			final MyPoint particleCopy = new MyPoint();
+			particleCopy.xD = actualParticle.xD.subtract(new BigDecimal(1.50))
+			        .add(new BigDecimal(this.ctr));
+			particleCopy.yD = actualParticle.yD.subtract(new BigDecimal(1.50))
+			        .add(new BigDecimal(this.ctr));
+			particleCopy.computeIntegerValues();
+			// firstFrame.put(this.computePoint(actualPoint.x, actualPoint.y,
+			// this.width), this.signalPeakValue);
+			firstFrame[particleCopy.y][particleCopy.x] = this.signalPeakValue;
+			frameParticles.add(actualParticle);
+			double x, y;
+			int step = 10;
 			switch (this.movDir) {
 			case Vertical:
-				newPoint.xD = actualPoint.xD + 10.0;
-				newPoint.yD = actualPoint.yD;
+				step = (this.height - 20) / this.numOfParticles;
+				x = actualParticle.xD.doubleValue() + step;
+				y = actualParticle.yD.doubleValue();
 				break;
 			default:
-				newPoint.xD = actualPoint.xD;
-				newPoint.yD = actualPoint.yD + 10.0;
+				step = (this.width - 20) / this.numOfParticles;
+				x = actualParticle.xD.doubleValue();
+				y = actualParticle.yD.doubleValue() + step;
 				break;
 			}
-			actualPoint = newPoint;
+			final MyPoint newPoint = new MyPoint(x, y);
+			actualParticle = newPoint;
 		}
-		this.particles.add(frameParticles);
+		this.addFrameParticles(frameParticles);
+		this.setLastAvailPoints(frameParticles);
+	}
+
+	private void generateFirstFrameParticlesFromAvailParticles() {
+		this.initParticles();
+		// Map<Integer, Double> frame = this.frames.get(0);
+		final Double[][] firstFrame = this.frames.get(0);
+		final List<MyPoint> frameParticles = new ArrayList<MyPoint>();
+		for (final MyPoint particle : this.lastAvailPoints) {
+			double x, y;
+			switch (this.movDir) {
+			case Vertical:
+				x = particle.xD.doubleValue();
+				y = particle.yD.doubleValue() + this.movSpeed;
+				break;
+			default:
+				x = particle.xD.doubleValue() + this.movSpeed;
+				y = particle.yD.doubleValue();
+				break;
+			}
+
+			final MyPoint newParticle = new MyPoint(x, y);
+
+			final MyPoint particleCopy = new MyPoint();
+			particleCopy.xD = newParticle.xD.subtract(new BigDecimal(1.50))
+			        .add(new BigDecimal(this.ctr));
+			particleCopy.yD = newParticle.yD.subtract(new BigDecimal(1.50))
+			        .add(new BigDecimal(this.ctr));
+			particleCopy.computeIntegerValues();
+			// frame.put(this.computePoint(newParticle.x, newParticle.y,
+			// this.width), this.signalPeakValue);
+			firstFrame[particleCopy.y][particleCopy.x] = this.signalPeakValue;
+			frameParticles.add(newParticle);
+		}
+		this.addFrameParticles(frameParticles);
+		this.setLastAvailPoints(frameParticles);
 	}
 
 	/**
@@ -271,41 +431,38 @@ public class ArtificialImageGenerator {
 	 * @since 0.0
 	 */
 	private void generateSubsequentialFrameParticles() {
-		for (int frameIndex = 1; frameIndex < this.numOfFrames; frameIndex++) {
-			final Map<Integer, Double> frame = this.frames.get(frameIndex);
+		for (int frameIndex = 1; frameIndex < this.frames.size(); frameIndex++) {
+			// Map<Integer, Double> frame = this.frames.get(frameIndex);
+			final Double[][] frame = this.frames.get(frameIndex);
 			final List<MyPoint> frameParticles = new ArrayList<MyPoint>();
 			for (final MyPoint particle : this.particles.get(frameIndex - 1)) {
-				final MyPoint newParticle = new MyPoint();
+				double x, y;
 				switch (this.movDir) {
 				case Vertical:
-					newParticle.xD = particle.xD;
-					newParticle.yD = particle.yD + this.movSpeed;
+					x = particle.xD.doubleValue();
+					y = particle.yD.doubleValue() + this.movSpeed;
 					break;
 				default:
-					newParticle.xD = particle.xD + this.movSpeed;
-					newParticle.yD = particle.yD;
+					x = particle.xD.doubleValue() + this.movSpeed;
+					y = particle.yD.doubleValue();
 					break;
 				}
-				newParticle.computeIntegerValues();
-				frame.put(this.computePoint(newParticle.x, newParticle.y,
-				        this.width), this.signalPeakValue);
+				final MyPoint newParticle = new MyPoint(x, y);
+
+				final MyPoint particleCopy = new MyPoint();
+				particleCopy.xD = newParticle.xD.subtract(new BigDecimal(1.50))
+				        .add(new BigDecimal(this.ctr));
+				particleCopy.yD = newParticle.yD.subtract(new BigDecimal(1.50))
+				        .add(new BigDecimal(this.ctr));
+				particleCopy.computeIntegerValues();
+				// frame.put(this.computePoint(newParticle.x, newParticle.y,
+				// this.width), this.signalPeakValue);
+				frame[particleCopy.y][particleCopy.x] = this.signalPeakValue;
 				frameParticles.add(newParticle);
 			}
-			this.particles.add(frameParticles);
+			this.addFrameParticles(frameParticles);
+			this.setLastAvailPoints(frameParticles);
 		}
-	}
-
-	public void setSigmaValue(final Integer sigmaValue) {
-		this.sigmaValue = sigmaValue;
-	}
-
-	public void setRadius(final Integer radius) {
-		this.radius = radius;
-	}
-
-	public void computeCTRAndW() {
-		this.ctr = this.radius * this.sigmaValue;
-		this.w = (this.ctr * 2) + 1;
 	}
 
 	/**
@@ -314,21 +471,24 @@ public class ArtificialImageGenerator {
 	 * @since 0.2
 	 */
 	public void generateGaussianBlobs_V1() {
-		for (int frameIndex = 0; frameIndex < this.numOfFrames; frameIndex++) {
-			final Map<Integer, Double> frame = this.frames.get(frameIndex);
+		for (int frameIndex = 0; frameIndex < this.frames.size(); frameIndex++) {
+			// Map<Integer, Double> frame = this.frames.get(frameIndex)
+			final Double[][] frame = this.frames.get(frameIndex);
 			for (final MyPoint particleCenter : this.particles.get(frameIndex)) {
-				Double centerValue = frame.get(this.computePoint(
-				        particleCenter.x, particleCenter.y, this.width));
-				centerValue -= this.backgroundValue;
+				// Double centerValue = frame.get(this.computePoint(
+				// particleCenter.x, particleCenter.y, this.width));
 				for (int x = -this.radius; x <= this.radius; x++) {
 					for (int y = -this.radius; y <= this.radius; y++) {
 						final Double newValue = this.calculateGaussianValue(
-						        centerValue, particleCenter.x,
-						        particleCenter.y, particleCenter.x + x,
-						        particleCenter.y + y, this.sigmaValue);
-						frame.put(this.computePoint(particleCenter.x + x,
-						        particleCenter.y + y, this.width),
-						        this.backgroundValue + newValue);
+						        (this.signalPeakValue - this.backgroundValue),
+						        particleCenter.x, particleCenter.y,
+						        particleCenter.x + x, particleCenter.y + y,
+						        this.sigmaValue);
+						// frame.put(this.computePoint(particleCenter.x + x,
+						// particleCenter.y + y, this.width),
+						// this.backgroundValue + newValue);
+						frame[particleCenter.y + y][particleCenter.x + x] = this.backgroundValue
+						        + newValue;
 					}
 				}
 			}
@@ -346,89 +506,126 @@ public class ArtificialImageGenerator {
 	 * @since 0.1
 	 */
 	public void generateGaussianBlobs_V2() {
-		this.xVal = new HashMap<Integer, Integer>();
+		// System.out.println("X");
+		// this.xVal = new HashMap<Integer, Integer>();
+		this.xVal = new Integer[this.w][this.w];
 		for (int y = 0; y < this.w; y++) {
 			for (int x = 0; x < this.w; x++) {
-				this.xVal.put(this.computePoint(x, y, this.w), 1 + y);
+				// this.xVal.put(this.computePoint(x, y, this.w), 1 + y);
+				this.xVal[y][x] = 1 + y;
 				// System.out.print(1 + y + "\t");
 			}
 			// System.out.println();
 		}
-		this.yVal = new HashMap<Integer, Integer>();
+		// System.out.println("Y");
+		// this.yVal = new HashMap<Integer, Integer>();
+		this.yVal = new Integer[this.w][this.w];
 		for (int y = 0; y < this.w; y++) {
 			for (int x = 0; x < this.w; x++) {
-				this.yVal.put(this.computePoint(x, y, this.w), 1 + x);
+				// this.yVal.put(this.computePoint(x, y, this.w), 1 + x);
+				this.yVal[y][x] = 1 + x;
 				// System.out.print(1 + x + "\t");
 			}
 			// System.out.println();
 		}
-		final Map<Integer, Double> pprot = new HashMap<Integer, Double>();
-		for (int frameIndex = 0; frameIndex < this.numOfFrames; frameIndex++) {
-			final Map<Integer, Double> frame = this.frames.get(frameIndex);
+		final Double[][] pprot = new Double[this.w][this.w];
+		// final Map<Integer, Double> pprot = new HashMap<Integer, Double>();
+		for (int frameIndex = 0; frameIndex < this.frames.size(); frameIndex++) {
+			// final Map<Integer, Double> frame = this.frames.get(frameIndex);
+			final Double[][] frame = this.frames.get(frameIndex);
 			// int counter = 0;
 			for (final MyPoint particle : this.particles.get(frameIndex)) {
-				// if ((counter == 0)) {
+				// if ((frameIndex == 50) && (counter == 0)) {
 				// System.out.println("Frame: " + frameIndex + " PARTICLE- X:"
 				// + particle.x + " Y: " + particle.y + "\tX: "
 				// + particle.xD + " Y: " + particle.yD);
 				// }
 
-				final Double centerValue = frame.get(this.computePoint(
-				        particle.x, particle.y, this.width));
+				// final Double centerValue = frame.get(this.computePoint(
+				// particle.x, particle.y, this.width));
 				Double protMax = 0.0;
 				// Build pprot values modifier
 				for (int y = 0; y < this.w; y++) {
 					for (int x = 0; x < this.w; x++) {
-						final int point = this.computePoint(x, y, this.w);
-						final Double valX = (((this.xVal.get(point) - this.ctr) - particle.xD) + particle.x) - 0.5;
+						// final int point = this.computePoint(x, y, this.w);
+						final Integer orgX = this.xVal[y][x];
+						final Double valX = (((orgX - this.ctr) - particle.xD
+						        .doubleValue()) + particle.x) - 0.5;
 						final Double valX2 = Math.pow(valX, 2);
-						final Double valY = (((this.yVal.get(point) - this.ctr) - particle.yD) + particle.y) - 0.5;
+						final Integer orgY = this.yVal[y][x];
+						final Double valY = (((orgY - this.ctr) - particle.yD
+						        .doubleValue()) + particle.y) - 0.5;
 						final Double valY2 = Math.pow(valY, 2);
 						final Double val = valX2 + valY2;
 						final Double expVal = val
 						        / (4.0 * Math.pow(this.sigmaValue, 2));
 						final Double exp = Math.exp(-expVal);
-						pprot.put(point, exp);
+						pprot[y][x] = exp;
+						// pprot.put(point, exp);
 						if (exp > protMax) {
 							protMax = exp;
 						}
 					}
 				}
 
-				// final DecimalFormat df = new DecimalFormat("0.0000");
-
 				// Normalize pprot values between 0 and 1
+				// final DecimalFormat df = new DecimalFormat("0.0000");
 				for (int y = 0; y < this.w; y++) {
 					for (int x = 0; x < this.w; x++) {
-						final int point = this.computePoint(x, y, this.w);
-						Double val = pprot.get(point);
+						// this.computePoint(x, y, this.w);
+						Double val = pprot[y][x];
+						// Double val = pprot.get(point);
 						val /= protMax;
-						pprot.put(point, val);
-						// if ((counter == 0)) {
+						// pprot.put(point, val);
+						pprot[y][x] = val;
+						// if ((frameIndex == 50) && (counter == 0)) {
 						// System.out.print(df.format(val) + "\t");
 						// }
 					}
-					// if ((counter == 0)) {
+					// if ((frameIndex == 50) && (counter == 0)) {
 					// System.out.println();
 					// }
 				}
 
-				final int xIndex = particle.x - this.ctr;
-				final int yIndex = particle.y - this.ctr;
-				// if ((counter == 0)) {
+				// if ((frameIndex == 50) && (counter == 0)) {
+				// System.out.println();
+				// }
+
+				// final DecimalFormat df = new DecimalFormat("0.0000");
+
+				// TODO Have to understand why this -1 is needed...
+				// Because this changes basically the center of particle
+				final int xIndex = particle.x - 1;
+				final int yIndex = particle.y - 1;
+				// if (((frameIndex == 0) && (counter == 0))) {
 				// System.out.println("Index x: " + xIndex + " index y: "
 				// + yIndex);
 				// }
 				for (int y = 0; y < this.w; y++) {
 					for (int x = 0; x < this.w; x++) {
-						final int coeffIndex = this.computePoint(y, x, this.w);
-						final int imageIndex = this.computePoint(xIndex + x,
-						        yIndex + y, this.width);
-						final Double newValue = (centerValue - this.backgroundValue)
-						        * pprot.get(coeffIndex);
-						frame.put(imageIndex, this.backgroundValue + newValue);
+						// this.computePoint(y, x, this.w);
+						// this.computePoint(xIndex + x, yIndex + y,
+						// this.width);
+						// final Double newValue = (centerValue -
+						// this.backgroundValue)
+						// * pprot.get(coeffIndex);
+						final Double newValue = (this.signalPeakValue - this.backgroundValue)
+						        * pprot[x][y];
+						final double val = this.backgroundValue + newValue;
+
+						// if (((frameIndex == 50) && (counter == 0))) {
+						// System.out.print(df.format(val) + "\t");
+						// }
+						// frame.put(imageIndex, val);
+						frame[yIndex + y][xIndex + x] = val;
 					}
+					// if (((frameIndex == 50) && (counter == 0))) {
+					// System.out.println();
+					// }
 				}
+				// if (((frameIndex == 50) && (counter == 0))) {
+				// System.out.println();
+				// }
 				// counter++;
 			}
 		}
@@ -469,11 +666,13 @@ public class ArtificialImageGenerator {
 	public void generatePoissonDistribution() {
 		final RandomEngine random = new MersenneTwister(Calendar.getInstance()
 		        .getTime());
-		for (final Map<Integer, Double> frame : this.frames) {
+		for (final Double[][] frame : this.frames) {
+			// for (final Map<Integer, Double> frame : this.frames) {
 			for (int y = 0; y < this.height; y++) {
 				for (int x = 0; x < this.width; x++) {
-					final int point = this.computePoint(x, y, this.width);
-					final Double oldValue = frame.get(point).doubleValue();
+					// final int point = this.computePoint(x, y, this.width);
+					final Double oldValue = frame[y][x];
+					// final Double oldValue = frame.get(point).doubleValue();
 					final Poisson distr = new Poisson(oldValue, random);
 					Double newValue = distr.nextDouble();
 					if (newValue < 0) {
@@ -481,7 +680,8 @@ public class ArtificialImageGenerator {
 					} else if (newValue > this.actualMaxValue) {
 						newValue = this.actualMaxValue;
 					}
-					frame.put(point, newValue);
+					// frame.put(point, newValue);
+					frame[y][x] = newValue;
 				}
 			}
 		}
@@ -491,6 +691,12 @@ public class ArtificialImageGenerator {
 		final StringBuffer folderName = new StringBuffer();
 		folderName.append(this.folder);
 		folderName.append("/");
+		if (this instanceof ArtificialImageGeneratorSpecial) {
+			folderName.append(GenerationType.Special.toString());
+		} else {
+			folderName.append(GenerationType.Standard.toString());
+		}
+		folderName.append("_");
 		folderName.append(this.numOfFrames);
 		folderName.append("_");
 		folderName.append(this.signalPeakValue);
@@ -502,8 +708,12 @@ public class ArtificialImageGenerator {
 		folderName.append("_");
 		folderName.append(this.numOfParticles);
 		folderName.append("_");
-		folderName.append(this.movDir.toString());
-		folderName.append("_");
+		if (this instanceof ArtificialImageGeneratorSpecial) {
+
+		} else {
+			folderName.append(this.movDir.toString());
+			folderName.append("_");
+		}
 		folderName.append(this.movSpeed);
 		folderName.append("_");
 		folderName.append(this.imageName);
@@ -534,13 +744,15 @@ public class ArtificialImageGenerator {
 	 * 
 	 * @since 0.0
 	 */
-	public void generateFiles(final Integer folderIndex)
+	public void generateFramesFiles(final Integer folderIndex)
 	        throws FileNotFoundException, IOException {
-		for (Integer i = 0; i < this.numOfFrames; i++) {
-			final Map<Integer, Double> frame = this.frames.get(i);
+		for (Integer i = 0; i < this.frames.size(); i++) {
+			final Double[][] frame = this.frames.get(i);
+			// final Map<Integer, Double> frame = this.frames.get(i);
+			final int index = this.lastAvailIndex + i + 1;
 			final String postfix = this.generatePostfix(
-			        this.imagePostfixDigits, i + 1).toString();
-			final String fileName = this.imageName + postfix;
+			        this.imagePostfixDigits, index).toString();
+			final String fileName = this.imageName + "_" + postfix;
 			final File f = new File(this.folders.get(folderIndex).getPath()
 			        + "/" + fileName + ".tif");
 			final BufferedImage bi = this.generateBufferedImage();
@@ -563,6 +775,57 @@ public class ArtificialImageGenerator {
 			encoder.encode(bi);
 			os.close();
 		}
+
+	}
+
+	public void generateLogsFiles(final Integer folderIndex)
+	        throws FileNotFoundException, IOException {
+		final File logDir = new File(this.folders.get(folderIndex).getPath()
+		        + "/logs");
+		if (!logDir.exists()) {
+			logDir.mkdir();
+		}
+		for (Integer i = 0; i < this.frames.size(); i++) {
+			// final Map<Integer, Double> frame = this.frames.get(i);
+			final int index = this.lastAvailIndex + i + 1;
+			final String postfix = this.generatePostfix(
+			        this.imagePostfixDigits, index).toString();
+			final String fileName = this.imageName + "_" + postfix;
+			final File f = new File(this.folders.get(folderIndex).getPath()
+			        + "/logs/PT_Log_" + fileName + ".txt");
+			final FileWriter fw = new FileWriter(f);
+			final BufferedWriter bw = new BufferedWriter(fw);
+
+			final StringBuffer sb = new StringBuffer("Particles of frame: "
+			        + index + "\n");
+			sb.append("Format:\t\tx double\ty double\tx\ty\n");
+			final List<MyPoint> frameParticles = this.particles.get(i);
+			for (int p = 0; p < frameParticles.size(); p++) {
+				final MyPoint particle = frameParticles.get(p);
+				final MyPoint particleCopy = new MyPoint();
+				particleCopy.xD = particle.xD.subtract(new BigDecimal(1.5))
+				        .add(new BigDecimal(this.ctr));
+				particleCopy.yD = particle.yD.subtract(new BigDecimal(1.5))
+				        .add(new BigDecimal(this.ctr));
+				particleCopy.computeIntegerValues();
+				sb.append("Particle ");
+				sb.append(p);
+				sb.append("\t");
+				sb.append(particleCopy.xD.toPlainString());
+				sb.append("\t\t");
+				sb.append(particleCopy.yD.toPlainString());
+				sb.append("\t\t");
+				sb.append(particleCopy.x);
+				sb.append("\t");
+				sb.append(particleCopy.y);
+				sb.append("\n");
+			}
+
+			bw.write(sb.toString());
+
+			bw.close();
+			fw.close();
+		}
 	}
 
 	public void generateResultsFile() throws IOException {
@@ -570,6 +833,13 @@ public class ArtificialImageGenerator {
 		final File f = new File(folderName.toString() + "/resultsFile.txt");
 		final FileWriter fw = new FileWriter(f);
 		final BufferedWriter bw = new BufferedWriter(fw);
+		bw.write("Gen type:\t\t\t\t");
+		if (this instanceof ArtificialImageGeneratorSpecial) {
+			bw.write(GenerationType.Special.toString());
+		} else {
+			bw.write(GenerationType.Standard.toString());
+		}
+		bw.write("\n");
 		bw.write("Number of datasets:\t\t" + this.numOfDatasets + "\n");
 		bw.write("Image names:\t\t\t" + this.imageName + "\n");
 		bw.write("Number of frames:\t\t" + this.numOfFrames + "\n");
@@ -604,8 +874,10 @@ public class ArtificialImageGenerator {
 	 * 
 	 * @since 0.0
 	 */
+	// private double[] generatePixel(final int x, final int y,
+	// final Map<Integer, Double> frame) {
 	private double[] generatePixel(final int x, final int y,
-	        final Map<Integer, Double> frame) {
+	        final Double[][] frame) {
 		double[] data;
 		switch (this.colors) {
 		case Grey:
@@ -625,44 +897,55 @@ public class ArtificialImageGenerator {
 
 		switch (this.colors) {
 		case Grey:
-			data[0] = frame.get(this.computePoint(x, y, this.width))
-			        .doubleValue();
+			// data[0] = frame.get(this.computePoint(x, y, this.width))
+			// .doubleValue();
+			data[0] = frame[y][x];
 			return data;
 		case Red:
-			data[0] = frame.get(this.computePoint(x, y, this.width))
-			        .doubleValue();
+			// data[0] = frame.get(this.computePoint(x, y, this.width))
+			// .doubleValue();
+			data[0] = frame[y][x];
 			data[1] = 0;
+			data[2] = 0;
 			return data;
 		case Green:
 			data[0] = 0;
-			data[1] = frame.get(this.computePoint(x, y, this.width))
-			        .doubleValue();
+			// data[1] = frame.get(this.computePoint(x, y, this.width))
+			// .doubleValue();
+			data[1] = frame[y][x];
 			data[2] = 0;
 			return data;
 		case Blue:
 			data[0] = 0;
 			data[1] = 0;
-			data[2] = frame.get(this.computePoint(x, y, this.width))
-			        .doubleValue();
+			// data[2] = frame.get(this.computePoint(x, y, this.width))
+			// .doubleValue();
+			data[2] = frame[y][x];
 			return data;
 		default:
 			switch (this.bits) {
 			case _32_Bits:
-				data[0] = frame.get(this.computePoint(x, y, this.width))
-				        .doubleValue();
-				data[1] = frame.get(this.computePoint(x, y, this.width))
-				        .doubleValue();
-				data[2] = frame.get(this.computePoint(x, y, this.width))
-				        .doubleValue();
+				// data[0] = frame.get(this.computePoint(x, y, this.width))
+				// .doubleValue();
+				// data[1] = frame.get(this.computePoint(x, y, this.width))
+				// .doubleValue();
+				// data[2] = frame.get(this.computePoint(x, y, this.width))
+				// .doubleValue();
+				data[0] = frame[y][x];
+				data[1] = frame[y][x];
+				data[2] = frame[y][x];
 				data[3] = 0;
 				return data;
 			default:
-				data[0] = frame.get(this.computePoint(x, y, this.width))
-				        .intValue();
-				data[1] = frame.get(this.computePoint(x, y, this.width))
-				        .intValue();
-				data[2] = frame.get(this.computePoint(x, y, this.width))
-				        .intValue();
+				// data[0] = frame.get(this.computePoint(x, y, this.width))
+				// .doubleValue();
+				// data[1] = frame.get(this.computePoint(x, y, this.width))
+				// .doubleValue();
+				// data[2] = frame.get(this.computePoint(x, y, this.width))
+				// .doubleValue();
+				data[0] = frame[y][x];
+				data[1] = frame[y][x];
+				data[2] = frame[y][x];
 				return data;
 			}
 		}
