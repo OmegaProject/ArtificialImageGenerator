@@ -254,8 +254,6 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 		        + " datasets per signal, " + this.numOfFrames
 		        + " frames per dataset");
 		for (int k = 0; k < this.signalPeakValues.size(); k++) {
-			this.lastAvailIndex = 0;
-			this.lastAvailPoints.clear();
 			this.currentSignalPeakValue = this.signalPeakValues.get(k);
 			final int indexSignal = k + 1;
 			this.updateGUI("Generating folders for signal " + " " + indexSignal
@@ -264,6 +262,8 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 			this.generateFolders();
 			this.updateGUI("Generating folders...completed");
 			for (int i = 0; i < this.numOfDatasets; i++) {
+				this.lastAvailIndex = 0;
+				this.lastAvailPoints.clear();
 				final int indexDataset = i + 1;
 				this.updateGUI("Generating dataset " + indexDataset + "/"
 				        + this.numOfDatasets);
