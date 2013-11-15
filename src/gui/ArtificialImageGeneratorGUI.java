@@ -65,6 +65,7 @@ public class ArtificialImageGeneratorGUI {
 	private JTextField signalPeakValue_txt;
 	private JTextField backgroundValue_txt;
 	private JTextField numOfParticles_txt;
+	private JTextField particlesDist_txt;
 	private JTextField radius_txt;
 	private JTextField movSpeed_txt;
 
@@ -75,7 +76,8 @@ public class ArtificialImageGeneratorGUI {
 	private JComboBox<MovementDirection> movDirs_cmb;
 
 	private JCheckBox backgroundGen_checkB, particlesGen_checkB,
-	        gaussianGen_checkB, poissonGen_checkB, particlesLogsGen_checkB;
+	        gaussianGen_checkB, poissonGen_checkB, particlesLogsGen_checkB,
+	        doubleValuesGen_checkB;
 
 	private JButton generate_btt;
 
@@ -250,6 +252,10 @@ public class ArtificialImageGeneratorGUI {
 		this.numOfParticles_txt = new JTextField();
 		panel.add(this.numOfParticles_txt);
 
+		panel.add(new JLabel("Distance between particles"));
+		this.particlesDist_txt = new JTextField();
+		panel.add(this.particlesDist_txt);
+
 		panel.add(new JLabel("Signal peak value"));
 		this.signalPeakValue_txt = new JTextField();
 		panel.add(this.signalPeakValue_txt);
@@ -300,6 +306,9 @@ public class ArtificialImageGeneratorGUI {
 
 		this.poissonGen_checkB = new JCheckBox("Has poisson");
 		panel.add(this.poissonGen_checkB);
+
+		this.doubleValuesGen_checkB = new JCheckBox("Has double values logs");
+		panel.add(this.doubleValuesGen_checkB);
 
 		return panel;
 	}
@@ -389,6 +398,7 @@ public class ArtificialImageGeneratorGUI {
 			this.height_txt.setText("15");
 			this.width_txt.setText("15");
 			this.numOfParticles_txt.setText("1");
+			this.particlesDist_txt.setText("0");
 			this.movDirs_cmb.setSelectedIndex(-1);
 			this.movSpeed_txt.setText("");
 			this.movSpeed_txt.setEnabled(false);
@@ -398,6 +408,7 @@ public class ArtificialImageGeneratorGUI {
 			this.height_txt.setText("256");
 			this.width_txt.setText("256");
 			this.numOfParticles_txt.setText("10");
+			this.particlesDist_txt.setText("10");
 			this.movDirs_cmb.setSelectedItem(MovementDirection.Horizontal);
 			this.movSpeed_txt.setText("0.27");
 			this.movSpeed_txt.setEnabled(true);
@@ -539,6 +550,10 @@ public class ArtificialImageGeneratorGUI {
 		return Integer.valueOf(this.numOfParticles_txt.getText());
 	}
 
+	public Integer getDistanceBetweenParticles() {
+		return Integer.valueOf(this.particlesDist_txt.getText());
+	}
+
 	/**
 	 * Return the peak signal value
 	 * 
@@ -672,5 +687,9 @@ public class ArtificialImageGeneratorGUI {
 
 	public boolean getHasPoisson() {
 		return this.poissonGen_checkB.isSelected();
+	}
+
+	public boolean getHasDoubleValuesLogs() {
+		return this.doubleValuesGen_checkB.isSelected();
 	}
 }

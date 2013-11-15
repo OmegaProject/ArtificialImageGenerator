@@ -59,6 +59,7 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 	private Double backgroundValue;
 
 	private Integer numOfParticles;
+	private final Integer particlesDist;
 
 	private Integer radius;
 	private Integer sigmaValue;
@@ -81,7 +82,9 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 	private int lastAvailIndex;
 
 	private boolean hasBackroundGen, hasParticleGen, hasGaussianGen,
-	        hasPoissonGen, hasGenerateLog;
+	        hasPoissonGen, hasParticleLogGen;
+
+	private final boolean hasDoubleValueLogGen;
 
 	private ArtificialImageGeneratorGUI gui;
 
@@ -171,12 +174,15 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 	        final int imagePostfixDigits, final int numOfFrames,
 	        final int height, final int width, final Bit bits,
 	        final Color colors, final Double backgroundValue,
-	        final int numOfParticles, final List<Double> signalPeakValues,
+	        final int numOfParticles, final int particlesDist,
+	        final List<Double> signalPeakValues,
 	        final MovementDirection movDirection, final Double movSpeed,
 	        final int radius, final int sigmaValue,
 	        final boolean hasBackgroundGen, final boolean hasParticleGen,
 	        final boolean hasGaussianGen, final boolean hasPoissonGen,
-	        final boolean hasGenerateLog, final ArtificialImageGeneratorGUI gui) {
+	        final boolean hasParticleLogGen,
+	        final boolean hasDoubleValuesLogGen,
+	        final ArtificialImageGeneratorGUI gui) {
 		this.folder = folder;
 		this.numOfDatasets = numOfDatasets;
 		this.imageName = imageName;
@@ -190,6 +196,7 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 		this.backgroundValue = backgroundValue;
 
 		this.numOfParticles = numOfParticles;
+		this.particlesDist = particlesDist;
 		this.signalPeakValues = signalPeakValues;
 		this.movDir = movDirection;
 		this.movSpeed = movSpeed;
@@ -201,7 +208,8 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 		this.hasParticleGen = hasParticleGen;
 		this.hasGaussianGen = hasGaussianGen;
 		this.hasPoissonGen = hasPoissonGen;
-		this.hasGenerateLog = hasGenerateLog;
+		this.hasParticleLogGen = hasParticleLogGen;
+		this.hasDoubleValueLogGen = hasDoubleValuesLogGen;
 
 		this.gui = gui;
 
@@ -212,7 +220,7 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 		this.hasParticleGen = hasParticleGen;
 		this.hasGaussianGen = hasGaussianGen;
 		this.hasPoissonGen = hasPoissonGen;
-		this.hasGenerateLog = hasGenerateLog;
+		this.hasParticleLogGen = hasParticleLogGen;
 
 		this.gui = gui;
 	}
@@ -285,8 +293,11 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 					}
 					try {
 						this.generateFramesFiles(i);
-						if (this.hasParticleGen && this.hasGenerateLog) {
+						if (this.hasParticleGen && this.hasParticleLogGen) {
 							this.generateLogsFiles(i);
+						}
+						if (this.hasDoubleValueLogGen) {
+							this.generateFullLogsFiles(i);
 						}
 						this.lastAvailIndex += this.frames.size();
 					} catch (final FileNotFoundException e) {
@@ -467,12 +478,12 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 			int step = 10;
 			switch (this.movDir) {
 			case Vertical:
-				step = (this.height - 20) / this.numOfParticles;
+				step = ((this.height - (this.ctr * 2)) / this.particlesDist) - 1;
 				x = actualParticle.xD.doubleValue() + step;
 				y = actualParticle.yD.doubleValue();
 				break;
 			default:
-				step = (this.width - 20) / this.numOfParticles;
+				step = ((this.width - (this.ctr * 2)) / this.particlesDist) - 1;
 				x = actualParticle.xD.doubleValue();
 				y = actualParticle.yD.doubleValue() + step;
 				break;
@@ -862,7 +873,15 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 			for (int y = 0; y < this.height; y++) {
 				for (int x = 0; x < this.width; x++) {
 					final double[] data = this.generatePixel(x, y, frame);
-					raster.setPixel(x, y, data);
+					final int[] newData = new int[data.length];
+					final BigDecimal[] bg = new BigDecimal[data.length];
+					for (int k = 0; k < data.length; k++) {
+						bg[k] = new BigDecimal(data[k]);
+						newData[k] = bg[k]
+						        .setScale(0, BigDecimal.ROUND_HALF_UP)
+						        .intValue();
+					}
+					raster.setPixel(x, y, newData);
 				}
 			}
 			bi.setData(raster);
@@ -873,6 +892,43 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 			os.close();
 		}
 
+	}
+
+	public void generateFullLogsFiles(final Integer folderIndex)
+	        throws FileNotFoundException, IOException {
+		final File logDir = new File(this.folders.get(folderIndex).getPath()
+		        + "/logs");
+		if (!logDir.exists()) {
+			logDir.mkdir();
+		}
+		for (Integer i = 0; i < this.frames.size(); i++) {
+			// final Map<Integer, Double> frame = this.frames.get(i);
+			final int index = this.lastAvailIndex + i + 1;
+			final String postfix = this.generatePostfix(
+			        this.imagePostfixDigits, index).toString();
+			final String fileName = this.imageName + "_" + postfix;
+			final File f = new File(this.folders.get(folderIndex).getPath()
+			        + File.separatorChar + "logs" + File.separatorChar
+			        + "FullLog_" + fileName + ".txt");
+			if (!f.exists()) {
+				f.createNewFile();
+			}
+
+			final FileWriter fw = new FileWriter(f, true);
+			final BufferedWriter bw = new BufferedWriter(fw);
+
+			for (int y = 0; y < this.height; y++) {
+				final StringBuffer sb = new StringBuffer();
+				for (int x = 0; x < this.width; x++) {
+					sb.append(this.frames.get(i)[y][x] + "\t");
+				}
+				sb.append("\n");
+				bw.write(sb.toString());
+			}
+
+			bw.close();
+			fw.close();
+		}
 	}
 
 	public void generateLogsFiles(final Integer folderIndex)
@@ -890,7 +946,7 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 			final String fileName = this.imageName + "_" + postfix;
 			final File f = new File(this.folders.get(folderIndex).getPath()
 			        + File.separatorChar + "logs" + File.separatorChar
-			        + "PT_Log_" + fileName + ".txt");
+			        + "ParticleLog_" + fileName + ".txt");
 			if (!f.exists()) {
 				f.createNewFile();
 			}

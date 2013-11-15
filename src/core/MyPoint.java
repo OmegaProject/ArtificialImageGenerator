@@ -38,8 +38,8 @@ public class MyPoint {
 	 * @since 1.0
 	 */
 	public MyPoint(final Double xD, final Double yD) {
-		this.xD = BigDecimal.valueOf(xD).setScale(2, RoundingMode.HALF_UP);
-		this.yD = BigDecimal.valueOf(yD).setScale(2, RoundingMode.HALF_UP);
+		this.xD = BigDecimal.valueOf(xD).setScale(5, RoundingMode.HALF_UP);
+		this.yD = BigDecimal.valueOf(yD).setScale(5, RoundingMode.HALF_UP);
 
 		this.computeIntegerValues();
 	}

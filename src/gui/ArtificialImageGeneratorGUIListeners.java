@@ -66,6 +66,7 @@ public class ArtificialImageGeneratorGUIListeners {
 				final Color colors = mainGUI.getColors();
 				final Double backgroundValue = mainGUI.getBackgroundValue();
 				final int numOfParticles = mainGUI.getNumOfParticles();
+				final int particlesDist = mainGUI.getDistanceBetweenParticles();
 				final List<Double> signalPeakValues = mainGUI
 				        .getSignalPeakValue();
 				final MovementDirection movDirection = mainGUI
@@ -79,6 +80,8 @@ public class ArtificialImageGeneratorGUIListeners {
 				final boolean hasParticlesLogs = mainGUI.getHasParticlesLogs();
 				final boolean hasGaussian = mainGUI.getHasGaussian();
 				final boolean hasPoisson = mainGUI.getHasPoisson();
+				final boolean hasDoubleValuesLogs = mainGUI
+				        .getHasDoubleValuesLogs();
 
 				final GenerationType genType = mainGUI.getGeneratorType();
 
@@ -89,19 +92,21 @@ public class ArtificialImageGeneratorGUIListeners {
 					aig = new ArtificialImageGeneratorSpecial(folder,
 					        numOfDatasets, imageName, imagePostfixDigits,
 					        numOfFrames, height, width, bits, colors,
-					        backgroundValue, numOfParticles, signalPeakValues,
-					        movDirection, movSpeed, radius, sigmaValue,
-					        hasBackGround, hasParticles, hasGaussian,
-					        hasPoisson, hasParticlesLogs, mainGUI);
+					        backgroundValue, numOfParticles, particlesDist,
+					        signalPeakValues, movDirection, movSpeed, radius,
+					        sigmaValue, hasBackGround, hasParticles,
+					        hasGaussian, hasPoisson, hasParticlesLogs,
+					        hasDoubleValuesLogs, mainGUI);
 					break;
 				default:
 					aig = new ArtificialImageGeneratorStandard(folder,
 					        numOfDatasets, imageName, imagePostfixDigits,
 					        numOfFrames, height, width, bits, colors,
-					        backgroundValue, numOfParticles, signalPeakValues,
-					        movDirection, movSpeed, radius, sigmaValue,
-					        hasBackGround, hasParticles, hasGaussian,
-					        hasPoisson, hasParticlesLogs, mainGUI);
+					        backgroundValue, numOfParticles, particlesDist,
+					        signalPeakValues, movDirection, movSpeed, radius,
+					        sigmaValue, hasBackGround, hasParticles,
+					        hasGaussian, hasPoisson, hasParticlesLogs,
+					        hasDoubleValuesLogs, mainGUI);
 					break;
 				}
 

@@ -25,17 +25,21 @@ public class ArtificialImageGeneratorSpecial extends
 	        final int imagePostfixDigits, final int numOfFrames,
 	        final int height, final int width, final Bit bits,
 	        final Color colors, final Double backgroundValue,
-	        final int numOfParticles, final List<Double> signalPeakValues,
+	        final int numOfParticles, final int particlesDist,
+	        final List<Double> signalPeakValues,
 	        final MovementDirection movDirection, final Double movSpeed,
 	        final int radius, final int sigmaValue,
 	        final boolean hasBackgroundGen, final boolean hasParticleGen,
 	        final boolean hasGaussianGen, final boolean hasPoissonGen,
-	        final boolean hasGenerateLog, final ArtificialImageGeneratorGUI gui) {
+	        final boolean hasParticleLogGen,
+	        final boolean hasDoubleValueLogGen,
+	        final ArtificialImageGeneratorGUI gui) {
 		super(folder, numOfDatasets, imageName, imagePostfixDigits,
 		        numOfFrames, height, width, bits, colors, backgroundValue,
-		        numOfParticles, signalPeakValues, movDirection, movSpeed,
-		        radius, sigmaValue, hasBackgroundGen, hasParticleGen,
-		        hasGaussianGen, hasPoissonGen, hasGenerateLog, gui);
+		        numOfParticles, particlesDist, signalPeakValues, movDirection,
+		        movSpeed, radius, sigmaValue, hasBackgroundGen, hasParticleGen,
+		        hasGaussianGen, hasPoissonGen, hasParticleLogGen,
+		        hasDoubleValueLogGen, gui);
 	}
 
 	// GENERATE PARTICLES
