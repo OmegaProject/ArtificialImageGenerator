@@ -20,6 +20,8 @@ import gui.ArtificialImageGeneratorGUI;
 public class ArtificialImageGeneratorSpecial extends
         ArtificialImageGeneratorStandard {
 
+	private final Random rand;
+
 	public ArtificialImageGeneratorSpecial(final File folder,
 	        final int numOfDatasets, final String imageName,
 	        final int imagePostfixDigits, final int numOfFrames,
@@ -40,6 +42,7 @@ public class ArtificialImageGeneratorSpecial extends
 		        movSpeed, radius, sigmaValue, hasBackgroundGen, hasParticleGen,
 		        hasGaussianGen, hasPoissonGen, hasParticleLogGen,
 		        hasDoubleValueLogGen, gui);
+		this.rand = new Random(System.nanoTime());
 	}
 
 	// GENERATE PARTICLES
@@ -73,10 +76,10 @@ public class ArtificialImageGeneratorSpecial extends
 		for (int frameIndex = 0; frameIndex < frames.size(); frameIndex++) {
 			final List<MyPoint> frameParticles = new ArrayList<MyPoint>();
 			for (int p = 0; p < numOfParticles; p++) {
-				Random rand = new Random(System.nanoTime());
-				final Double randomPartX = rand.nextDouble();
-				rand = new Random(System.nanoTime());
-				final Double randomPartY = rand.nextDouble();
+				// Random rand = new Random(System.nanoTime());
+				final Double randomPartX = this.rand.nextDouble();
+				// rand = new Random(System.nanoTime());
+				final Double randomPartY = this.rand.nextDouble();
 
 				final BigDecimal x = startingPosition.add(new BigDecimal(
 				        randomPartX));
