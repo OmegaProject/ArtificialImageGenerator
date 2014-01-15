@@ -71,7 +71,14 @@ public class ArtificialImageGeneratorSpecial extends
 		this.getParticles();
 		final List<Double[][]> frames = this.getFrames();
 
-		final BigDecimal startingPosition = new BigDecimal(7.0 - ctr);
+		final BigDecimal halfX = new BigDecimal(this.getHeight()).divide(
+		        new BigDecimal(2)).setScale(0, BigDecimal.ROUND_HALF_UP);
+		final BigDecimal halfY = new BigDecimal(this.getWidth()).divide(
+		        new BigDecimal(2)).setScale(0, BigDecimal.ROUND_HALF_UP);
+		final BigDecimal startingPositionX = new BigDecimal(halfX.intValue()
+		        - ctr);
+		final BigDecimal startingPositionY = new BigDecimal(halfY.intValue()
+		        - ctr);
 
 		for (int frameIndex = 0; frameIndex < frames.size(); frameIndex++) {
 			final List<MyPoint> frameParticles = new ArrayList<MyPoint>();
@@ -81,9 +88,9 @@ public class ArtificialImageGeneratorSpecial extends
 				// rand = new Random(System.nanoTime());
 				final Double randomPartY = this.rand.nextDouble();
 
-				final BigDecimal x = startingPosition.add(new BigDecimal(
+				final BigDecimal x = startingPositionX.add(new BigDecimal(
 				        randomPartX));
-				final BigDecimal y = startingPosition.add(new BigDecimal(
+				final BigDecimal y = startingPositionY.add(new BigDecimal(
 				        randomPartY));
 
 				final MyPoint newParticle = new MyPoint(x.doubleValue(),

@@ -156,6 +156,14 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 		}
 	}
 
+	protected Integer getHeight() {
+		return this.height;
+	}
+
+	protected Integer getWidth() {
+		return this.width;
+	}
+
 	/**
 	 * Create a new generatore with the given parameters
 	 * 
