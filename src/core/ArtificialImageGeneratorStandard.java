@@ -245,10 +245,8 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 				}
 			});
 		} catch (final InvocationTargetException ex) {
-			// TODO Auto-generated catch block
 			ex.printStackTrace();
 		} catch (final InterruptedException ex) {
-			// TODO Auto-generated catch block
 			ex.printStackTrace();
 		}
 	}
@@ -309,10 +307,8 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 						}
 						this.lastAvailIndex += this.frames.size();
 					} catch (final FileNotFoundException e) {
-						// TODO Auto-generated catch block
 						e.printStackTrace();
 					} catch (final IOException e) {
-						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
 				}
@@ -320,7 +316,6 @@ public class ArtificialImageGeneratorStandard implements Runnable {
 			try {
 				this.generateResultsFile();
 			} catch (final IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			this.updateGUI("\nPrinting results:");
