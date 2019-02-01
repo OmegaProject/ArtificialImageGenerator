@@ -12,7 +12,7 @@ authors:
     orcid: https://orcid.org/0000-0002-1069-1816
 title: OMEGA ArtificialImageGenerator
 version: v0.01.0-beta
-doi: PENDING
+doi: https://doi.org/10.5281/zenodo.2555460 
 date-released: 2019-02-01
 repository: https://github.com/OmegaProject/ArtificialImageGenerator
 description: 
