@@ -15,7 +15,7 @@ version: v0.01.1-beta
 doi: https://doi.org/10.5281/zenodo.2555460 
 date-released: 2019-02-01
 repository: https://github.com/OmegaProject/ArtificialImageGenerator
-description: 
+description: This repository contains the source code for a Java program called ArtificialImageGenerator, which was developed to reproduce a MatLab routine previously described by Sbalzarini and co-workers (Sbalzarini and Koumotsakos, 2005).
 keywords:
   - java
   - benchmarking
@@ -88,3 +88,20 @@ references:
     journal: bioRxiv.org
     doi: 10.1101/379255
     url: https://doi.org/10.1101/379255
+  - type: article
+    scope: Cite this paper every time you use the sofware
+    authors:
+      - family-names: Sbalzarini
+        given-names: Ivo F.
+        affiliation: Institute of Computational Science, ETH Zu ̈rich, 8092 Zu ̈rich, Switzerland
+        email: ivos@mpi-cbg.de
+      - family-names: Koumoutsakos
+        given-names: Petros
+        affiliation: Institute of Computational Science, ETH Zu ̈rich, 8092 Zu ̈rich, Switzerland
+        email: petros@inf.ethz.ch
+    title: "Feature point tracking and trajectory analysis for video imaging in cell biology"
+    year: 2005
+    journal: Journal of Structural Biology
+    doi: 10.1016/j.jsb.2005.06.002
+    url: http://linkinghub.elsevier.com/retrieve/pii/S1047847705001267
+
