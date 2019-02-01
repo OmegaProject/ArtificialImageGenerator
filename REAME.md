@@ -1,1 +1,0 @@
-Artificial image generation
