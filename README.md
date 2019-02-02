@@ -3,10 +3,10 @@ This repository contains the source code for a Java program called ArtificialIma
 
 ## Method Description
 The generator produces:  
-1. Images with variable bit depth (8-bit / 16-bit / etc.)
-2. Images with variable pixel height and width
-3. Variable numbers of images per dataset
-4. Variable numbers of image frames per image
+1. Images with variable bit depth (8-bit / 16-bit / etc.).
+2. Images with variable pixel height and width.
+3. Variable numbers of images per dataset.
+4. Variable numbers of image frames per image.
 5. Variable frame intervals.
 6. Variable numbers of bright spots per image frames.
 7. Variable bright spots mobility between frames.
