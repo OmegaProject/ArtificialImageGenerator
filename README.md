@@ -1,13 +1,21 @@
 # Artificial Image Generator
-## Method Description
 This repository contains the source code for a Java program called ArtificialImageGenerator, which was developed to reproduce a MatLab routine previously described by Sbalzarini and co-workers (Sbalzarini and Koumotsakos, 2005). 
+
+## Method Description
+The generator produces:  
+1. Images with variable bit depth (8-bit / 16-bit / etc.)
+2. Images with variable pixel height and width
+3. Variable numbers of images per dataset
+4. Variable numbers of image frames per image
+5. Variable frame intervals.
+6. Variable numbers of bright spots per image frames.
+7. Variable bright spots mobility between frames.
+8. Variable spot pixel radiuses. 
+
 In brief:
-1. Image sets each containing 1000 independently generated synthetic planes are created to contain simulated point sources.
-2. Planes are initialized by adding a background (black) intensity value of B = 10 to each pixel. 
-3. In order to model different image qualities (vis. SNR), point sources are assigned variable intensity values (I).
-4. In order to model microscopic observation is simulated by sampling a Gaussian of σ = 1 pixel and µ = I, centered at each known point position. 
-5. In order to model Poisson-distributed Shot noise associated with CCD camera image acquisition, I was replaced at each pixel with a number sampled at random from a Poisson distribution of mean value µ = I. 
-All random numbers are generated independently for every trial and plane. Artificial planes are stored as unscaled 16-bit TIFF files. 
+1. In order to model different image qualities (vis. Signal-To-Noise-Ratios), image frames can be initialized with variable background intensity values (B), and bright spots can be assigned variable peak intensities (PI).
+2. Microscopic observation is simulated by sampling a Gaussian with a given σ value, µ = PI, and centered at each known bright spot position.
+3. In order to model Poisson-distributed Shot noise associated with CCD camera image acquisition, the intensity value (I) at each pixel was replaced with a number sampled at random from a Poisson distribution of mean value µ = I. The random seed is reinitialized for each image.
 
 ## Method Validation
 The functionality of the Java program was evaluated by direct comparison with the MatLab version of the algorithm. 
